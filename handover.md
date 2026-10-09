@@ -10,7 +10,7 @@
 
 - **Phase: PLANNING ONLY.** A strict approval gate is in force (§1). Do **not** implement anything.
 - **Only exception:** this `handover.md` file. The user explicitly asked for it so work survives session loss. No other repository file may be created or modified before the user approves the final plan.
-- **Progress:** Stage 1 (reconnaissance) is **done**. Stage 2 (research) is **in progress**: an 11-dimension research workflow with adversarial source verification was launched in the originating session. Its results are **not yet recorded here**. If §7 has no research digests, re-run the workflow in §9.
+- **Progress:** Stage 1 is **done**. Stage 2 research is **mostly done**; condensed conclusions are in §7, and some verification is still running. Stage 3 (strategies, judging and plan sections) is **in progress**. If the originating session is gone, start from §7 and §8; re-running §9 is needed only to refresh the evidence.
 - **Next:** finish research → run the design workflow (competing strategies, maths, benchmark, red team, threat model) → write the final plan (Parts A–Q, §3) → present it in Plan Mode → **stop and wait for explicit approval**.
 - The original user brief is the authoritative source. §2 is a faithful condensation of it. If the user can paste the original, prefer it.
 
@@ -275,8 +275,8 @@ The plan must be concrete enough to start without rediscovering basic decisions,
 | Stage | Status | Notes |
 |---|---|---|
 | 1. Read-only reconnaissance | ✅ Done | See §5. Repo is effectively empty. |
-| 2. Research and competitive investigation | 🔄 In progress | Workflow `probe-landscape-research` (run `wf_181ed593-9f9`) launched in the originating session. Results are not yet in §7. If they are missing when you resume, **re-run §9**. |
-| 3. ≥3 strategies + build/buy/integrate matrix | ⏳ Not started | Planned as a second workflow (§8 step 3). |
+| 2. Research and competitive investigation | 🔄 Mostly done | 11/11 research dimensions are done and conclusions are condensed in §7. Verification of 8 dimensions, the completeness critique and gap-fill are re-running (task `wcj45svms`). |
+| 3. ≥3 strategies + build/buy/integrate matrix | 🔄 In progress | Design workflow `wf_80edc487-99b`: 4 strategies, 3 judges, 6 specialist sections, red team. |
 | 4. Refine hypothesis, domain, demo, success criteria | ⏳ Not started | |
 | 5. Comprehensive plan (Parts A–Q) | ⏳ Not started | |
 | 6. Stop for approval | ⏳ | Present in Plan Mode, then `ExitPlanMode`. |
@@ -310,43 +310,136 @@ The plan must be concrete enough to start without rediscovering basic decisions,
 
 ---
 
-## 7. Research results
+## 7. Research results (interim, 2026-10-09)
 
-> **Not yet recorded.** When the research workflow completes, add a compact, verified digest per dimension here: key findings, a verified source table (title, org, date, URL, contribution, evidence, limitations, relevance, verification status), tools with license and maintenance, and competitors. Mark anything unverified.
+### 7.0 Run status and constraints
+- **Research workflow `wf_181ed593-9f9`:** all 11 research agents completed. Verifiers completed for 3 dimensions (ai-scientist-systems, hypothesis-validation-benchmarks, boed-theory). The other 8 verifiers and the completeness critic failed at a usage limit. They were resumed (task `wcj45svms`) with network guidance and an added "re-verify" step for the claims the first verifiers could not check. **Results pending.**
+- **Design workflow `wf_80edc487-99b` (task `wpsry8m1m`), pending:**
+  - 4 competing strategies: S1 deterministic evidence engine; S2 probabilistic-programming platform; S3 LLM-agent investigator; S4 verification and benchmark layer;
+  - 3 judges (research rigour, startup, delivery risk);
+  - 6 specialist plan sections (H; I; F/G/K; J/P; M/N/O; L);
+  - a red team.
+- **Network constraint (important for any new session):**
+  - The environment's network policy blocks arxiv.org, nature.com, openreview.net, api.semanticscholar.org, api.crossref.org, biorxiv.org and many company sites for WebFetch and curl.
+  - WebSearch works but draws on a shared budget, which was exhausted once.
+  - github.com, raw.githubusercontent.com and pypi.org are reachable.
+  - Consequence: **many paper-level numbers and venues are unverified.** Repo and PyPI facts (licences, releases, code behaviour) are mostly verified.
+  - The user can allow-list these domains in the environment's network settings.
+- Raw results live only in the originating container (`…/scratchpad/research/*.json` and the workflow `journal.jsonl`). A new session cannot see them, which is why the conclusions are condensed below.
 
-### 7.1 Unverified working hypotheses (pre-research; **do not cite as findings**)
-These are hypotheses from the CTO's prior knowledge, recorded so the next session knows what the research is testing. **All must be confirmed or refuted against primary sources.**
-- **Likely high-overlap prior art** to check carefully:
-  - BoxingGym (Stanford, 2025): a benchmark for LLM agents doing experimental design and model discovery with EIG.
-  - POPPER (Stanford, 2025): agentic sequential falsification with e-values.
-  - BED-LLM (Rainforth group, 2025): LLMs combined with Bayesian experimental design.
-  - Piriyakulkij et al. (NeurIPS 2024): LLM-proposed rules, Bayesian inference and active experimentation.
-  - AI2 AutoDiscovery (Bayesian surprise).
-  - FutureHouse/Edison Kosmos and Robin, Google AI co-scientist, Sakana AI Scientist v1/v2.
-  - Sloman et al. 2022: adaptive designs can be *worse* than random under misspecification ("active learning bias").
-- **Likely conclusion to test:** "adaptive EIG beats random/fixed" is *well known* in correctly specified settings, so Hypothesis A as stated is probably not novel. A **sharper, falsifiable candidate**: *misspecification-robust adaptive hypothesis discrimination*. The hypothesis set is generated (possibly by an LLM) and may be **incomplete or misspecified**. The question is whether a guarded adaptive design keeps its efficiency advantage without becoming confidently wrong. Candidate guards: an explicit "unmodeled / none-of-the-above" hypothesis, tempered or power posteriors, posterior-predictive checks that trigger hypothesis-space expansion, an exploration mixture, and anytime-valid (e-value) inference under optional stopping. The headline metric would be calibrated correctness per unit cost, with confident-wrong runs penalized.
-- **Likely architecture direction (to be stress-tested by ≥3 alternatives):**
-  - A Python deterministic scientific core: hypotheses as executable generative models, exact or Monte-Carlo EIG over finite candidate actions, cost-aware selection.
-  - FastAPI with Pydantic v2; SQLite via SQLAlchemy and Alembic (Postgres-ready); a DB-backed job queue (no Redis).
-  - Content-addressed raw data with a provenance graph, exported as RO-Crate/W3C PROV.
-  - A React+TS SPA.
-  - An optional LLM behind a provider abstraction, with a labelled deterministic offline dev provider.
-- **Candidate second environment** for generalization (Hypothesis B): black-box API/system behavior discovery through controlled queries.
+### 7.1 Headline conclusions
+Tags: **[V]** verified from a primary source (repo/PyPI/docs); **[S]** confirmed by search snippets only; **[U]** unverified.
+
+1. **Hypotheses A and B as stated are not novel.** Choosing observations by expected information gain (EIG) among competing generative hypotheses is classical; the prior art includes:
+   - Box & Hill 1967, and ADO (Cavagnaro/Myung/Pitt 2010) [U-bibliographic];
+   - ADOpy [V: GPL-3.0; single-model only; does not discriminate between models];
+   - BOSMOS, online model-selection design with misspecification experiments (Comput. Brain & Behavior 2023) [V via repo];
+   - BoxingGym, Stanford [V: MIT; 10 PyMC environments; nested-Monte-Carlo EIG regret; last commit 2025-07-30; confirmed location-finding likelihood bug; the PyPI `boxing-gym` name is an unrelated package] [S: NeurIPS 2025];
+   - Piriyakulkij et al., NeurIPS 2024 [V via repo];
+   - BED-LLM, ICLR 2026 [U];
+   - POPPER, sequential falsification with e-values [V code: p→e calibrator κ·p^(κ−1), product > 1/α; no LICENSE file in the repo, PyPI says MIT; stale since 2025-05];
+   - Ai2 AutoDiscovery [V: Apache-2.0 `asta-autodiscovery` CLI on PyPI, 1.0.1 (2026-09-04); needs a cloud LLM];
+   - Active Bayesian Causal Inference and CBED (NeurIPS 2022) [U];
+   - Active Statistical Inference (Zrnic & Candès 2024) [U];
+   - Krause et al. 2008 GP sensor placement [U].
+2. **Most critical overlap: the Model Discovery Agent** (K. Murphy, arXiv 2608.09696, Aug 2026) [U; being re-verified]. Reportedly:
+   - an LLM proposes mechanistic models;
+   - SMC/SBI inference, with VOI/EIG choosing interventions;
+   - the model class is reopened when predictions fail (M-open).
+
+   A third-party critique says joint model-plus-parameter disagreement did *worse* than random on BoxingGym location finding. MIT `neuronbench` and `glucosebench` exist on murphyk's GitHub [V]. If the paper is confirmed, PROBE's methodological overlap is near-total.
+3. **Close neighbours on verifiability and reproducibility:**
+   - **simjecture** [V: Apache-2.0, first release Aug 2026]: LLM-led falsification with frozen inputs, receipts, hashes and model-free record verification; no EIG.
+   - **ARA protocol** [V: MIT]: claims/evidence/trace with user/AI provenance tags.
+   - **sciagent** [V: Apache-2.0, single author, v1.0 on 2026-10-01]: a deterministic, preregistered research-agent benchmark with BOED, random and oracle baselines. It reports an "evidence wall": BOED never chose the decisive observation because no hypothesis it entertained made that observation informative.
+   - **IvoryOS** [V: MIT, v1.7.0, Windows-tested local SDL orchestrator with Ax/BayBE plug-ins and an optional LLM].
+   - **Urban Cooling Agent** [V: MIT; React+FastAPI+LLM microclimate simulation; no hypotheses, adaptive design or provenance].
+4. **Market:**
+   - The "AI scientist" story is owned by heavily funded players: Lila (~$550M) [S/U], Periodic (~$300M seed) [U], Edison/Kosmos ($70M seed, ~$200 per run) [U], plus Google co-scientist and Sakana.
+   - Adaptive allocation and Bayesian optimization are commodity: Ax, BoTorch, BayBE and Optuna [V]; GrowthBook ships bandits; Statsig→OpenAI and Eppo→Datadog [U].
+   - SDL vendors target wet labs.
+   - **White space (narrow):**
+     - model *discrimination*, not optimization;
+     - cheap observational, field or software settings;
+     - a deterministic offline core that needs no key;
+     - conclusions scored for calibration;
+     - honest negative regimes;
+     - bit-replayable decisions;
+     - mechanical enforcement of claim strength.
+   - Microclimate: a good demo with an unproven buyer.
+   - Candidate wedges: education (teaching experimental design without hardware); a verification and audit layer for AI-generated empirical claims; later, vertical adaptive monitoring.
+5. **Engine recommendation (strong consensus across dimensions):**
+   - Use numpy/scipy only, with conjugate Normal-Inverse-Gamma linear hypotheses. These give exact evidence and Student-t predictives.
+   - **Model-indicator EIG = H[mixture predictive] − Σ_m π_m H[t_m]**, computed by deterministic 1-D quadrature. Parameter EIG is closed-form.
+   - Selection is cost-aware.
+   - Pyro `nmc_eig` and brute-force Monte Carlo serve only as test oracles.
+   - Optional extras: NumPyro / PyMC 6 SMC, dynesty (MIT), a scikit-learn GP residual hypothesis, pyABC.
+   - Avoid BOED-specific dependencies because of churn [V]: Pyro had a 28-month release gap; pyDOE3 was archived 2026-05; NIST optbayesexpt was archived 2026-10-07; Trieste, HEBO and Summit are pinned to old stacks.
+6. **Validity under adaptivity:**
+   - Likelihood inference ignores the design only if the selection rule is logged exactly.
+   - Naive means and fixed-n CIs are biased.
+   - Use anytime-valid e-processes or confidence sequences, reimplemented. confseq has no Windows or Python 3.11+ wheels [V]. `expectation` is GPL plus an AI-training clause [V].
+   - Use randomization with logged propensities for design-based claims.
+   - Failure modes to plant in the benchmark: active-learning bias under misspecification (Sloman 2022) [U]; negative interference; the evidence wall; myopia; flat information landscapes; drift; a sun-dependent sensor bias confound.
+7. **Claim-guard levels:** L0 simulated · L1 convenience observational (descriptive only) · L2 probability/stratified sampling · L2a adaptive observational (model-based only) · L3 DAG + identification + refuters + sensitivity (conditional causal) · L4 controlled non-randomized intervention · L5 randomized intervention.
+   - Automatic downgrades: Moran's I, PPC failure, R-hat/ESS, Pareto k, uncorrected multiplicity, QC failure, protocol deviation.
+   - A "no effect" claim needs equivalence/ROPE evidence.
+   - The LLM may only paraphrase within the permitted level; a lexicon validator checks it.
+8. **Infrastructure:**
+   - Python 3.12/3.13 with uv.lock.
+   - FastAPI (pin exactly; still 0.x) [V]. Pydantic v2 domain models kept separate from SQLAlchemy 2.1 + Alembic (batch mode).
+   - SQLite with WAL, foreign keys, STRICT tables and CHECK constraints.
+   - SQLite job table, an in-process worker, and a ProcessPool for benchmark sweeps. No Redis. DBOS (MIT; SQLite default since 3.x; not CI-tested on Windows) [V] or Huey kept behind an interface.
+   - A hash-chained append-only ledger and a sha256 content-addressed blob store.
+   - Export PROV-JSON (`prov` 3.2.2, MIT) [V] and a Workflow Run RO-Crate (ro-crate-py 0.16) [V].
+   - Pandera, Table Schema and pint at ingest.
+   - Jinja2 HTML reports, with optional typst PDF. A marimo notebook in each bundle for independent recomputation.
+   - **Reproducibility contract:** decisions match exactly; floats match within tolerance, since BLAS differs between Windows and Linux.
+   - **No execution of generated code in v1:** RestrictedPython had escape advisories in 2026, and Pydantic archived its Pyodide sandbox [V].
+9. **LLM layer:**
+   - PROBE defines its own provider port, with Null, Replay, Recording, Ollama, OpenAI-compatible and Anthropic implementations.
+   - Not in the core: LiteLLM (PyPI compromise of 1.82.7/1.82.8 on 2026-03-24) [V], LangChain, DSPy, or agent SDKs.
+   - LLM output enters only as `epistemic_status='proposed'`. Replay never re-calls a model.
+   - Cost per full-assist session: about $0.015 (Haiku 5.5) to $0.58 (Opus 5.5).
+10. **Frontend:**
+    - Vite 8 + React 19 + TypeScript SPA, served by FastAPI `app.frontend()` from a built dist shipped in the wheel, so there is no Node at runtime.
+    - shadcn/ui on Base UI, with Tailwind and React Aria.
+    - Vega-Lite figures of record generated by the backend (Altair) and exported with vl-convert. uPlot for streams; visx/D3 for signature views.
+    - React Flow + dagre; TanStack Table/Query/Router; FastAPI native SSE; Playwright + Vitest.
+    - **Charts never compute statistics:** Vega's bootstrap CI uses `Math.random`.
+11. **Domain:**
+    - Keep microclimate as the narrative and UX flagship, using a custom structural causal simulator with an explicit sensor model (the radiation-shield error confound). SOLWEIG is GPL and treats air temperature as an input [V].
+    - Stratified sampling is a very strong baseline in this domain.
+    - Portable shade makes randomized interventions possible.
+    - **Add a "black-box system lab"** as an evidence-bearing second environment: planted rate-limiter, cache and retry behaviours, with AALpy, random and stratified baselines.
+    - External benchmark adapters: 2-3 BoxingGym environments (pin commit `b43e38c`; patch and report the bug) and NeuronBench.
+    - Optional live-human adaptive-design demo (delay discounting).
+
+### 7.2 Emerging positioning (to be stress-tested by the design workflow and red team)
+PROBE is **not** "an AI scientist" and does **not** claim a new adaptive-design algorithm. The candidate position: **a deterministic, auditable engine that decides which observation to make next in order to tell competing explanations apart.** Its conclusions are calibrated, replayable and capped in strength by the study design. It publishes the regimes where adaptive selection helps, ties and loses. The LLM is optional and never authoritative.
+
+The research contribution is to be refined into falsifiable form, for example: *a calibrated regime map of adaptive model-discrimination design under misspecification, cost and confounding, with mechanical claim-strength enforcement.*
+
+### 7.3 Pre-research hunches (from §7.1 of the first version): outcome
+- Overlap with BoxingGym, POPPER, BED-LLM, Piriyakulkij and AutoDiscovery: **confirmed**. Additional overlap found: BOSMOS, MDA, simjecture, sciagent, IvoryOS.
+- "Misspecification-robust adaptive discrimination" as the sharper hypothesis: **still the leading candidate**, now with known prior art to cite (BOSMOS misspecification experiments, Sloman et al., generalised-Bayes BOED, arXiv 2511.07671 [V code]).
+- Architecture direction (numpy/scipy core, FastAPI, SQLite, React, optional LLM): **corroborated** by all infrastructure dimensions.
+- Black-box API environment: **recommended** by the alternative-domains dimension as the second environment.
 
 ---
 
 ## 8. Next steps (ordered)
 
-1. **Collect the research results.** In the originating session: read the workflow result or its `journal.jsonl`. In a new session: re-run the §9 workflow (needs Workflow-tool opt-in; ultracode was on in the originating session). Without workflows, run the 11 dimensions as parallel `Agent` research tasks with the same prompts.
-2. **Record digests in §7** of this file. Commit and push (`handover.md` only).
-3. **Run the design workflow** (read-only):
-   - (a) three materially different strategy proposals (e.g. a custom lean BOED core; a platform built on an existing BO/DoE framework such as Ax/BoTorch or BayBE; an LLM-agent-centric approach on an existing AI-scientist/benchmark stack), plus a judge panel;
-   - (b) a mathematical spec of the adaptive selector (EIG formulation, estimator, cost, stopping, misspecification diagnostics, fallback);
-   - (c) benchmark design (environments, baselines, seeds, metrics, budgets, falsification criteria);
-   - (d) a red-team critique of novelty, commercial claims and domain choice;
-   - (e) a threat model.
-4. **Write the final plan** covering Parts A–Q (§3), the seven §3.8 deliverables and the four proposed research-artifact contents.
+1. ✅ **Research collected and condensed** into §7.
+2. 🔄 **Finish verification:** task `wcj45svms` re-runs 8 verifiers, 3 re-verifiers for unverified load-bearing claims (MDA first), the completeness critic and up to 5 gap-fills. Fold any corrections into §7, especially MDA and any newly found direct competitor.
+   - **New session, originating session gone:** re-verify the [U] items in §7.1 with WebSearch. Start with MDA (arXiv 2608.09696), BED-LLM, BoxingGym results, POPPER venue and results, Sloman et al. 2022, and Kosmos accuracy figures.
+3. 🔄 **Design workflow** `wf_80edc487-99b`. The new-session equivalent runs these read-only:
+   - (a) four strategies, then three judges with different lenses. The strategies are: S1 deterministic evidence engine, a lean numpy/scipy model-discrimination core plus an integrity layer; S2 probabilistic-programming platform (NumPyro/PyMC, BoTorch, IvoryOS/DBOS); S3 LLM-agent investigator with verified tools (MDA/Box's Loop style); S4 verification and benchmark layer, PROBE as a trust layer. The judge lenses are research rigour, startup, and delivery risk.
+   - (b) specialist sections: H (maths and scientific method), I (benchmark), F/G/K (architecture, data/API, repo), J/P (roadmap and acceptance), M/N/O (security, cost, risks) and L (UI).
+   - (c) a red team on differentiation, domain choice, the refined hypotheses, and the founder decisions (Part Q).
+4. **Synthesize the final plan** covering Parts A–Q (§3), the seven §2.3/3.8 deliverables and the proposed contents of `RELATED_WORK.md`, `COMPETITIVE_LANDSCAPE.md`, `RESEARCH_HYPOTHESES.md` and `ARCHITECTURE_DECISIONS.md`. Reconcile with the verification results. Mark every unverified claim.
 5. **Present it:** `EnterPlanMode` → write the plan to the plan file → `ExitPlanMode`. **STOP. Wait for explicit approval.** The user may approve, request revisions, approve only some milestones, or reject.
+6. Update this file at each step: commit and push `handover.md` only.
 
 ---
 
@@ -530,3 +623,4 @@ return { digests, critique, gapFills: gapFills.filter(Boolean) }
 | Date | Session | Change |
 |---|---|---|
 | 2026-10-09 | session_01WyyihpQzFz2ZYAdX8EKpJj | Created handover. Stage 1 done; Stage 2 research workflow `wf_181ed593-9f9` running; Anthropic API facts recorded; pre-research working hypotheses recorded as unverified. |
+| 2026-10-09 | session_01WyyihpQzFz2ZYAdX8EKpJj | Research results condensed into §7 with verification tags. Network block documented. Verification resumed (`wcj45svms`). Design workflow launched (`wf_80edc487-99b`). |
