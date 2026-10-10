@@ -13,20 +13,64 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import special
 
-__all__ = ["DiscretePredictive", "Predictive", "StudentTPredictive", "student_t_entropy"]
+__all__ = [
+    "DiscretePredictive",
+    "Predictive",
+    "StudentTPredictive",
+    "student_t_entropy",
+    "t_log_normalizer",
+]
+
+_SERIES_DF = 50.0
+_HALF_LOG_2PI = 0.5 * float(np.log(2.0 * np.pi))
+
+
+def t_log_normalizer(df: np.ndarray) -> np.ndarray:
+    """L(ν) = log Γ((ν+1)/2) − log Γ(ν/2) − ½ log(νπ), the log density of the
+    standard t_ν at 0.
+
+    For ν < 50 the log-gamma difference is used directly. For ν ≥ 50 it would lose
+    up to ~1e-8 to cancellation (at ν = 1e8), so the asymptotic series
+    L(ν) = −½ log 2π − 1/(4ν) + 1/(24ν³) − 1/(20ν⁵) + 17/(112ν⁷) + O(ν⁻⁹)
+    (from the Bernoulli expansion of log Γ(x + ½) − log Γ(x), x = ν/2) is used;
+    its truncation error is below 1e-15 there."""
+    df = np.asarray(df, dtype=np.float64)
+    big = df >= _SERIES_DF
+    small = np.where(big, 1.0, df)
+    direct = (
+        special.gammaln(0.5 * (small + 1.0))
+        - special.gammaln(0.5 * small)
+        - 0.5 * np.log(small * np.pi)
+    )
+    inv = 1.0 / np.where(big, df, 1.0)
+    inv2 = inv * inv
+    series = -_HALF_LOG_2PI + inv * (
+        -0.25 + inv2 * (1.0 / 24.0 + inv2 * (-1.0 / 20.0 + inv2 * (17.0 / 112.0)))
+    )
+    return np.where(big, series, direct)
 
 
 def student_t_entropy(df: np.ndarray, scale: np.ndarray) -> np.ndarray:
     """Differential entropy (nats) of t_ν(μ, s):
-    log s + ((ν+1)/2)[ψ((ν+1)/2) − ψ(ν/2)] + log(√ν · B(ν/2, 1/2))."""
+    log s + ((ν+1)/2)[ψ((ν+1)/2) − ψ(ν/2)] + log(√ν · B(ν/2, 1/2)).
+
+    The last term equals −L(ν) (:func:`t_log_normalizer`). For ν ≥ 50 the
+    digamma difference cancels catastrophically (error ∝ ν·ε), so
+    ((ν+1)/2)Δψ = ½ + 3/(4ν) + 1/(4ν²) − 1/(8ν³) − 1/(8ν⁴) + 1/(4ν⁵) + 1/(4ν⁶)
+    − 17/(16ν⁷) + O(ν⁻⁸) is used instead; it tends to the Gaussian ½ log(2πe s²)."""
     df = np.asarray(df, dtype=np.float64)
     scale = np.asarray(scale, dtype=np.float64)
-    return (
-        np.log(scale)
-        + 0.5 * (df + 1.0) * (special.digamma(0.5 * (df + 1.0)) - special.digamma(0.5 * df))
-        + 0.5 * np.log(df)
-        + special.betaln(0.5 * df, 0.5)
+    big = df >= _SERIES_DF
+    small = np.where(big, 1.0, df)
+    direct = (
+        0.5 * (small + 1.0) * (special.digamma(0.5 * (small + 1.0)) - special.digamma(0.5 * small))
     )
+    v = 1.0 / np.where(big, df, 1.0)
+    series = 0.5 + v * (
+        0.75
+        + v * (0.25 + v * (-0.125 + v * (-0.125 + v * (0.25 + v * (0.25 + v * (-17.0 / 16.0))))))
+    )
+    return np.log(scale) + np.where(big, series, direct) - t_log_normalizer(df)
 
 
 @dataclass(frozen=True)
@@ -52,13 +96,7 @@ class StudentTPredictive:
         """log density; ``y`` broadcasts against (n,), e.g. shape (n,) or (m, n)."""
         z = (np.asarray(y, dtype=np.float64) - self.loc) / self.scale
         nu = self.df
-        return (
-            special.gammaln(0.5 * (nu + 1.0))
-            - special.gammaln(0.5 * nu)
-            - 0.5 * np.log(nu * np.pi)
-            - np.log(self.scale)
-            - 0.5 * (nu + 1.0) * np.log1p(z * z / nu)
-        )
+        return t_log_normalizer(nu) - np.log(self.scale) - 0.5 * (nu + 1.0) * np.log1p(z * z / nu)
 
     def entropy(self) -> np.ndarray:
         return student_t_entropy(self.df, self.scale)

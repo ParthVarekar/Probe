@@ -93,11 +93,13 @@ def test_priors_and_signature_nesting():
     "bad",
     [
         lambda: HypothesisSet(outcome=OUT, covariates=COVS, hypotheses=(H1, H3)),  # no residual
-        lambda: _h("X", [IndicatorTerm(covariate="shade", level="nope")]).model_copy()
-        and HypothesisSet(
-            outcome=OUT,
-            covariates=COVS,
-            hypotheses=(_h("X", [IndicatorTerm(covariate="shade", level="nope")]), H0),
+        lambda: (
+            _h("X", [IndicatorTerm(covariate="shade", level="nope")]).model_copy()
+            and HypothesisSet(
+                outcome=OUT,
+                covariates=COVS,
+                hypotheses=(_h("X", [IndicatorTerm(covariate="shade", level="nope")]), H0),
+            )
         ),
         lambda: HypothesisSet(
             outcome=OUT, covariates=COVS, hypotheses=(_h("X", [NumericTerm(covariate="shade")]), H0)
