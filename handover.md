@@ -1,5 +1,7 @@
 # PROBE — Session Handover
 
+> **New session? Start with §0.1 (continue in a local session).**
+
 > **Purpose:** let any Claude session pick up the PROBE founding-CTO planning assignment if the current session ends midway.
 > **Branch:** `claude/pensive-ptolemy-huq2mx` · **Originating session:** https://claude.ai/code/session_01WyyihpQzFz2ZYAdX8EKpJj
 > **Last updated:** 2026-10-09. See the update log at the bottom.
@@ -13,6 +15,56 @@
 - **Progress:** Stage 1 is **done**. Stage 2 research is **mostly done**; condensed conclusions are in §7, and some verification is still running. Stage 3 (strategies, judging and plan sections) is **in progress**. If the originating session is gone, start from §7 and §8; re-running §9 is needed only to refresh the evidence.
 - **Next:** the full plan (§12) has been presented for approval. **Wait for the user's decision.** The recommended initial approval scope is M0–M4: foundations through the benchmark go/no-go gate.
 - The original user brief is the authoritative source. §2 is a faithful condensation of it. If the user can paste the original, prefer it.
+
+---
+
+## 0.1 ▶ CONTINUE IN A LOCAL SESSION (start here)
+
+The cloud planning session ended on 2026-10-10. **The user will continue in a local Claude Code session.** The plan in §12 was presented for approval but **not approved in the cloud session**: the approval UI was denied twice and the user chose to move to a local environment. **Treat §12 as the current proposal awaiting the user's explicit approval.**
+
+**Local prerequisites (Windows 11 or Linux):**
+- git;
+- Python 3.12 or 3.13 with [`uv`](https://docs.astral.sh/uv/);
+- Node 22+ with `pnpm`, needed later for the frontend.
+
+No GPU, Docker, API key or paid service is needed.
+
+```bash
+git clone https://github.com/ParthVarekar/Probe && cd Probe
+git checkout claude/pensive-ptolemy-huq2mx
+```
+
+**Kickoff prompt to paste into the local Claude Code session:**
+> Read `handover.md` in full. It is the continuity record for the PROBE assignment. Respect §1, the approval gate: do not implement anything until I approve. First, with your unrestricted network access, verify the claims tagged [U] in §7 and §12, starting with the papers in Part B, and update the plan if anything changes. Then present §12 for my approval in Plan Mode. If I approve, implement only the milestones I name (recommended: M0–M4, stopping at the M4 benchmark go/no-go gate for review), following Part J and the acceptance criteria in Part P.
+
+**What to re-verify first.** The cloud environment blocked arxiv.org, nature.com, openreview.net, Semantic Scholar, Crossref and most company sites, so check these first:
+- Model Discovery Agent (arXiv 2608.09696): results, baselines, code availability.
+- BoxingGym's published results, and whether its location-finding bug affects them.
+- POPPER's numbers.
+- BED-LLM's results.
+- Sloman et al. 2022 and UAI 2024.
+- LLM-IDEA (arXiv 2610.11253) and LLM-AutoSciLab.
+- Kosmos accuracy figures.
+- Microclimate effect sizes for the simulator: Middel et al., Terando et al. 2017.
+- Classic BOED bibliographic details.
+- The 6 research dimensions not adversarially verified: workflow/provenance infrastructure, LLM providers, microclimate, alternative domains, statistics/causal, frontend. Their repo and PyPI facts were checked by the research agents, but not independently.
+
+**Decisions still open for the user (§12 Part Q):**
+1. positioning;
+2. domain;
+3. engine scope;
+4. licence;
+5. approval scope (recommended: M0–M4 first);
+6. customer discovery in parallel.
+
+**Conventions for the implementation session:**
+- Keep `handover.md` updated at each milestone.
+- Develop on a branch.
+- Run CI on Windows and Linux.
+- Never execute generated code.
+- Every number comes from the deterministic engine.
+
+The raw research JSON and workflow transcripts lived only in the cloud container and are **not** available. §7 and §12 are the durable record.
 
 ---
 
@@ -279,7 +331,7 @@ The plan must be concrete enough to start without rediscovering basic decisions,
 | 3. ≥3 strategies + build/buy/integrate matrix | ✅ Done | S1–S3 drafted by advocate agents; S4 and the judging done by the CTO (judge agents hit the usage limit). Recommendation: S1 base + grafts. |
 | 4. Refine hypothesis, domain, demo, success criteria | ✅ Done | A′/A″/B′ in §12 Part H.10 |
 | 5. Comprehensive plan (Parts A–Q) | ✅ Done | Full text in §12 |
-| 6. Stop for approval | 🔄 Awaiting user | Presented via Plan Mode on 2026-10-09. **Do not implement until the user explicitly approves.** |
+| 6. Stop for approval | ⏸ Awaiting user (local) | Presented 2026-10-09/10; not approved in the cloud session. The user continues locally (see §0.1). **Do not implement until the user explicitly approves.** |
 
 ---
 
@@ -628,6 +680,7 @@ return { digests, critique, gapFills: gapFills.filter(Boolean) }
 | 2026-10-09 | session_01WyyihpQzFz2ZYAdX8EKpJj | Created handover. Stage 1 done; Stage 2 research workflow `wf_181ed593-9f9` running; Anthropic API facts recorded; pre-research working hypotheses recorded as unverified. |
 | 2026-10-09 | session_01WyyihpQzFz2ZYAdX8EKpJj | Research results condensed into §7 with verification tags. Network block documented. Verification resumed (`wcj45svms`). Design workflow launched (`wf_80edc487-99b`). |
 | 2026-10-09 | session_01WyyihpQzFz2ZYAdX8EKpJj | Research verification and design workflows partly stopped by usage limits. CTO completed strategy judging and wrote the full Part A–Q plan (§12). Presented for approval. |
+| 2026-10-10 | session_01WyyihpQzFz2ZYAdX8EKpJj | Plan not approved in the cloud session; the user moves to a local environment. Added §0.1 (local prerequisites, kickoff prompt, re-verification list, open decisions). |
 
 ---
 
