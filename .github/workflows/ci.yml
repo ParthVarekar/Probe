@@ -54,3 +54,19 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked --group oracle
       - run: uv run pytest -m oracle -n auto
+
+  install-smoke:
+    name: wheel install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build --wheel -o dist
+      - run: uv tool install --python 3.12 dist/*.whl
+        shell: bash
+      - run: probe --version
+      - run: probe run --family systemlab --regime R2 --seed 1 --policy P8

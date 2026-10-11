@@ -32,7 +32,12 @@ The user said "complete the project" (implicit approval of the plan; build all m
 | M5 Ledger/API | ✅ Core done. Ledger: `src/probe/ledger/` (sqlite3 hash chain, append-only triggers, CAS; plan deviation: no SQLAlchemy/Alembic). `src/probe/bundle.py` (`record_run` logs live with each decision before its observation; `export_bundle`; `verify_bundle` checks chain + ordering + replay). API: `src/probe/api/__init__.py` (FastAPI: `/api/meta`, `POST /api/runs` (runs in a background thread), `/api/runs`, `/events`, SSE `/stream` with Last-Event-ID, `/evaluation` (evaluator-only, after the stop), `/verify`, `/bundle`, `/report`; loopback Host check). CLI: `probe record/export/verify/serve/demo`. **To do:** a protocol draft → validate → lock state machine as separate endpoints, persistent jobs with leases/cancel, and the identifiability warning at validation. |
 | M6 Minimal UI | ✅ `src/probe/api/static/index.html`: dependency-free single page (plan deviation: React/Vite is replaced so no Node is needed). Experiment form with the pre-registered expectation, live posterior chart from SSE, "why this next", ledger table, evaluator panel, verify, report and bundle download. Start it with `uv run probe demo`. **To do:** Playwright E2E, the Hypothesis Explorer, Replay diff and Benchmark View screens (M9). |
 | M7 Claims/report/export/verify | ✅ Mostly done: `src/probe/claims.py` (computed levels; v0 is always L0; downgrades; H.9 lexicon validator), `src/probe/report.py` (static HTML: SIMULATED watermark, claims, posterior SVG, decision log with "why this next", provenance hashes). CLI: `probe report <bundle>`. **To do:** RO-Crate/PROV metadata in the bundle, and a marimo notebook. |
-| M8–M13 | ⏳ (M11 needs network; M12 gated) |
+| M8 Data modes B/C (CSV, manual, HTTP ingest) | ⏳ not started |
+| M9 Full UI (9 screens, a11y, Playwright) | ⏳ not started (the M6 single page covers the core loop) |
+| M10 AI provider port | ⏳ not started (optional; the product must work with no key) |
+| M11 External benchmarks (BoxingGym, NeuronBench) | ⏳ not started (needs network and upstream code) |
+| M12 M-open enumerator / LLM proposer | ⏳ gated on M10 + M11 |
+| M13 Packaging | 🔄 The wheel bundles the UI (`probe/api/static/index.html`) and the `probe` entry point. CI job `install-smoke` (wheel install + `probe run` on Windows and Ubuntu) has been added. **To do:** docs and sample bundles. |
 
 **Notes for the next session:**
 - Workflow subagents must be given `model: 'opus'`, because the default subagent model is misconfigured.
