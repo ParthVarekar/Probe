@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--seeds", type=int, default=None, help="override seeds per cell")
     bench.add_argument("--workers", type=int, default=1)
     bench.add_argument("--out", type=Path, default=Path("results/bench"))
+    bench.add_argument(
+        "--summarize-only",
+        action="store_true",
+        help="re-aggregate existing results in --out without running",
+    )
 
     rec = sub.add_parser("record", help="run and record an experiment in a ledger workspace")
     rec.add_argument("--workspace", type=Path, default=Path("probe_workspace"))
@@ -152,8 +157,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 def _cmd_bench(args: argparse.Namespace) -> int:
-    from probe.bench import run_matrix
+    from probe.bench import run_matrix, summarize
 
+    if args.summarize_only:
+        print(json.dumps(summarize(args.out, args.matrix)["gate"], indent=2))
+        return 0
     summary = run_matrix(args.matrix, args.out, seeds=args.seeds, workers=args.workers)
     print(json.dumps(summary, indent=2))
     return 0

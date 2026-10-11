@@ -29,7 +29,15 @@ import yaml
 
 from probe.determinism import content_hash, make_rng
 
-__all__ = ["aggregate", "gate", "load_matrix", "matrix_hash", "run_cell_seed", "run_matrix"]
+__all__ = [
+    "aggregate",
+    "gate",
+    "load_matrix",
+    "matrix_hash",
+    "run_cell_seed",
+    "run_matrix",
+    "summarize",
+]
 
 
 def load_matrix(path: Path) -> dict[str, Any]:
@@ -87,6 +95,7 @@ def aggregate(rows: Sequence[Mapping[str, Any]], matrix: Mapping[str, Any]) -> d
                 "n": len(rs),
                 "correct": float(np.mean([r["correct"] for r in rs])),
                 "confidently_wrong": float(np.mean([r["confidently_wrong"] for r in rs])),
+                "declared_wrong": float(np.mean([r["declared_wrong"] for r in rs])),
                 "top1": float(np.mean([r["top1_correct"] for r in rs])),
                 "decided": float(np.mean([r["decided"] for r in rs])),
                 "cost": float(np.mean([r["cost"] for r in rs])),
@@ -213,6 +222,27 @@ severity than the baseline is a loss.</p>
 <table><thead><tr><th>cell</th><th>pre-registered</th><th>outcome</th>{head}</tr></thead>
 <tbody>{"".join(rows)}</tbody></table></body></html>"""
     path.write_text(doc, encoding="utf-8")
+
+
+def summarize(out: Path, matrix_path: Path) -> dict[str, Any]:
+    """Re-aggregate an existing ``results.parquet`` (no re-running) and rewrite the
+    summary and regime map. Refuses if the matrix hash no longer matches."""
+    import pyarrow.parquet as pq
+
+    matrix = load_matrix(matrix_path)
+    rows = pq.read_table(out / "results.parquet").to_pylist()
+    hashes = {r["matrix_hash"] for r in rows}
+    if hashes != {matrix_hash(matrix)}:
+        raise ValueError(f"results were produced under matrix hash(es) {sorted(hashes)}")
+    old = json.loads((out / "summary.json").read_text(encoding="utf-8"))["meta"]
+    cells = aggregate(rows, matrix)
+    g = gate(cells, matrix)
+    (out / "summary.json").write_text(
+        json.dumps({"meta": old, "gate": g, "cells": cells}, indent=2, default=str),
+        encoding="utf-8",
+    )
+    write_report(cells, g, old, out / "regime_map.html")
+    return {"meta": old, "gate": g}
 
 
 def run_matrix(
