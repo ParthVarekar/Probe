@@ -1,0 +1,1941 @@
+{
+  "meta": {
+    "version": "v0",
+    "matrix_hash": "e4651de5900d1d1bfbda9aa150ecc4c374377888dc234acfc3b7a5d4bf538c99",
+    "seeds": 100,
+    "budget": "large",
+    "policies": [
+      "P1",
+      "P2",
+      "P3",
+      "P4",
+      "P5",
+      "P6",
+      "P7",
+      "P8",
+      "P9",
+      "P10"
+    ],
+    "primary": "P8",
+    "runtime_s": 1426.565194200004,
+    "n_runs": 15000
+  },
+  "gate": {
+    "positive_control": "microclimate/R10",
+    "positive_control_separates": false,
+    "realistic_win_cells": [
+      "microclimate/R2",
+      "microclimate/R4",
+      "systemlab/R1"
+    ],
+    "go": false,
+    "note": "GO requires the positive control to separate and >=1 other win cell at equal or better severity (handover \u00a712 Part J, M4)."
+  },
+  "cells": {
+    "microclimate/R1": {
+      "expected": "adaptive wins",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.03,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.08,
+          "top1": 0.55,
+          "decided": 0.06,
+          "cost": 405.615,
+          "brier": 0.6324886041836827,
+          "runtime_s": 0.8777999679997447
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.08,
+          "confidently_wrong": 0.1,
+          "declared_wrong": 0.05,
+          "top1": 0.59,
+          "decided": 0.12,
+          "cost": 412.38,
+          "brier": 0.6468625135408311,
+          "runtime_s": 0.8261411839998618
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.05,
+          "confidently_wrong": 0.12,
+          "declared_wrong": 0.07,
+          "top1": 0.58,
+          "decided": 0.06,
+          "cost": 398.955,
+          "brier": 0.6372865651866763,
+          "runtime_s": 0.7801767709999694
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.12,
+          "confidently_wrong": 0.13,
+          "declared_wrong": 0.09,
+          "top1": 0.55,
+          "decided": 0.15,
+          "cost": 398.865,
+          "brier": 0.682750375855247,
+          "runtime_s": 0.6595709170001647
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.01,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.05,
+          "top1": 0.52,
+          "decided": 0.01,
+          "cost": 408.07,
+          "brier": 0.7236134012173977,
+          "runtime_s": 0.683156238000156
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.08,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.04,
+          "top1": 0.58,
+          "decided": 0.08,
+          "cost": 402.835,
+          "brier": 0.6594189314060841,
+          "runtime_s": 0.6735014479999518
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.36,
+          "confidently_wrong": 0.38,
+          "declared_wrong": 0.27,
+          "top1": 0.6,
+          "decided": 0.52,
+          "cost": 331.325,
+          "brier": 0.6850128150892995,
+          "runtime_s": 1.3657281880006484
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.3,
+          "confidently_wrong": 0.31,
+          "declared_wrong": 0.18,
+          "top1": 0.63,
+          "decided": 0.43,
+          "cost": 357.905,
+          "brier": 0.6101250571001959,
+          "runtime_s": 1.2315287089999039
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.14,
+          "declared_wrong": 0.09,
+          "top1": 0.47,
+          "decided": 0.02,
+          "cost": 401.27,
+          "brier": 0.8041129594982851,
+          "runtime_s": 1.2027213910000136
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.36,
+          "confidently_wrong": 0.27,
+          "declared_wrong": 0.14,
+          "top1": 0.66,
+          "decided": 0.41,
+          "cost": 338.845,
+          "brier": 0.5833464514164919,
+          "runtime_s": 2.0497937489995093
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -128.205,
+        "ci95": [
+          -169.2325,
+          -90.03550000000003
+        ],
+        "relative": -0.1698484406878461,
+        "severity_diff": 0.18,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R2": {
+      "expected": "tie with stratified",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.23,
+          "confidently_wrong": 0.16,
+          "declared_wrong": 0.16,
+          "top1": 0.8,
+          "decided": 0.23,
+          "cost": 313.8,
+          "brier": 0.22330580608071685,
+          "runtime_s": 0.8679895769993163
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.26,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.88,
+          "decided": 0.26,
+          "cost": 325.045,
+          "brier": 0.13883106245042748,
+          "runtime_s": 0.8852991409997776
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.33,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.15,
+          "top1": 0.8,
+          "decided": 0.33,
+          "cost": 308.31,
+          "brier": 0.22114175383613335,
+          "runtime_s": 0.8579152249996695
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.27,
+          "confidently_wrong": 0.1,
+          "declared_wrong": 0.1,
+          "top1": 0.9,
+          "decided": 0.27,
+          "cost": 326.875,
+          "brier": 0.13509008486787974,
+          "runtime_s": 0.7358332610002981
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.12,
+          "confidently_wrong": 0.08,
+          "declared_wrong": 0.07,
+          "top1": 0.83,
+          "decided": 0.12,
+          "cost": 336.56,
+          "brier": 0.1991464532108094,
+          "runtime_s": 0.7654698750000535
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.29,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.11,
+          "top1": 0.84,
+          "decided": 0.29,
+          "cost": 318.43,
+          "brier": 0.16574648076569803,
+          "runtime_s": 0.7377638540005864
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.67,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.9,
+          "decided": 0.67,
+          "cost": 266.65,
+          "brier": 0.10195840795529193,
+          "runtime_s": 1.1327178710002044
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.68,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.87,
+          "decided": 0.7,
+          "cost": 280.34,
+          "brier": 0.15955006550699097,
+          "runtime_s": 1.0819706579998456
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.41,
+          "confidently_wrong": 0.17,
+          "declared_wrong": 0.17,
+          "top1": 0.77,
+          "decided": 0.42,
+          "cost": 282.58,
+          "brier": 0.26411028104399087,
+          "runtime_s": 1.2761861250006767
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.65,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.87,
+          "decided": 0.65,
+          "cost": 266.995,
+          "brier": 0.17377215590762313,
+          "runtime_s": 1.5691948269998102
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": -80.875,
+        "ci95": [
+          -132.52087500000002,
+          -31.179750000000002
+        ],
+        "relative": -0.17736329045911597,
+        "severity_diff": -0.08000000000000002,
+        "outcome": "win"
+      }
+    },
+    "microclimate/R3": {
+      "expected": "unguarded adaptive loses on safety; guarded ~ baselines",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.72,
+          "confidently_wrong": 0.13,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 266.835,
+          "brier": null,
+          "runtime_s": 0.4245065459999023
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.77,
+          "confidently_wrong": 0.08,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 234.27,
+          "brier": null,
+          "runtime_s": 0.3744510210002045
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.71,
+          "confidently_wrong": 0.12,
+          "declared_wrong": 0.01,
+          "top1": 0.0,
+          "decided": 0.01,
+          "cost": 273.025,
+          "brier": null,
+          "runtime_s": 0.4225494489999255
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.58,
+          "confidently_wrong": 0.23,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 294.325,
+          "brier": null,
+          "runtime_s": 0.42092378499954064
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.53,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 313.875,
+          "brier": null,
+          "runtime_s": 0.43540701699959755
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.62,
+          "confidently_wrong": 0.16,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 290.675,
+          "brier": null,
+          "runtime_s": 0.4351387609999074
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.88,
+          "confidently_wrong": 0.06,
+          "declared_wrong": 0.03,
+          "top1": 0.0,
+          "decided": 0.03,
+          "cost": 179.38,
+          "brier": null,
+          "runtime_s": 0.48163226699980444
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.84,
+          "confidently_wrong": 0.07,
+          "declared_wrong": 0.01,
+          "top1": 0.0,
+          "decided": 0.01,
+          "cost": 199.99,
+          "brier": null,
+          "runtime_s": 0.4918005399998947
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.71,
+          "confidently_wrong": 0.1,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 234.445,
+          "brier": null,
+          "runtime_s": 0.5796345220003423
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.91,
+          "confidently_wrong": 0.06,
+          "declared_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 176.235,
+          "brier": null,
+          "runtime_s": 0.5779020819999278
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -63.815,
+        "ci95": [
+          -122.840625,
+          3.0862499999999113
+        ],
+        "relative": -0.19327043929918075,
+        "severity_diff": -0.009999999999999995,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R4": {
+      "expected": "adaptive wins if shield actions exist",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.27,
+          "confidently_wrong": 0.05,
+          "declared_wrong": 0.05,
+          "top1": 0.93,
+          "decided": 0.27,
+          "cost": 389.36,
+          "brier": 0.09565234107692737,
+          "runtime_s": 0.6512698820001241
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.3,
+          "confidently_wrong": 0.02,
+          "declared_wrong": 0.02,
+          "top1": 0.94,
+          "decided": 0.3,
+          "cost": 391.64,
+          "brier": 0.08956791573662079,
+          "runtime_s": 0.6600417309996556
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.26,
+          "confidently_wrong": 0.03,
+          "declared_wrong": 0.03,
+          "top1": 0.93,
+          "decided": 0.26,
+          "cost": 389.84,
+          "brier": 0.09538880906716893,
+          "runtime_s": 0.6557041829999798
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.44,
+          "confidently_wrong": 0.02,
+          "declared_wrong": 0.02,
+          "top1": 0.97,
+          "decided": 0.44,
+          "cost": 377.435,
+          "brier": 0.06125058644862958,
+          "runtime_s": 0.5505035819999466
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.2,
+          "confidently_wrong": 0.03,
+          "declared_wrong": 0.0,
+          "top1": 0.75,
+          "decided": 0.2,
+          "cost": 399.455,
+          "brier": 0.3809512634169203,
+          "runtime_s": 0.5806547719998343
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.32,
+          "confidently_wrong": 0.04,
+          "declared_wrong": 0.02,
+          "top1": 0.92,
+          "decided": 0.32,
+          "cost": 380.29,
+          "brier": 0.10560547457586628,
+          "runtime_s": 0.5362092670001585
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.71,
+          "confidently_wrong": 0.05,
+          "declared_wrong": 0.04,
+          "top1": 0.96,
+          "decided": 0.71,
+          "cost": 293.78,
+          "brier": 0.047125785029826985,
+          "runtime_s": 0.9666210180001508
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.73,
+          "confidently_wrong": 0.03,
+          "declared_wrong": 0.03,
+          "top1": 0.97,
+          "decided": 0.73,
+          "cost": 303.53,
+          "brier": 0.03815595299657451,
+          "runtime_s": 0.8528863790004106
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.04,
+          "confidently_wrong": 0.02,
+          "declared_wrong": 0.02,
+          "top1": 0.82,
+          "decided": 0.04,
+          "cost": 405.365,
+          "brier": 0.2402742024214534,
+          "runtime_s": 0.998265696999806
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.66,
+          "confidently_wrong": 0.03,
+          "declared_wrong": 0.03,
+          "top1": 0.97,
+          "decided": 0.66,
+          "cost": 293.31,
+          "brier": 0.032089082331546864,
+          "runtime_s": 1.4059954440000002
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -198.1,
+        "ci95": [
+          -249.066,
+          -147.62300000000002
+        ],
+        "relative": -0.3262489604005237,
+        "severity_diff": 0.009999999999999998,
+        "outcome": "win"
+      }
+    },
+    "microclimate/R5": {
+      "expected": "all tie; inconclusive is correct",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.04,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 408.76,
+          "brier": null,
+          "runtime_s": 0.9352518209994014
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.02,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 413.695,
+          "brier": null,
+          "runtime_s": 0.9633711829999811
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.12,
+          "declared_wrong": 0.04,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 409.36,
+          "brier": null,
+          "runtime_s": 0.9281177279999975
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.03,
+          "confidently_wrong": 0.06,
+          "declared_wrong": 0.02,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 413.63,
+          "brier": null,
+          "runtime_s": 0.8173712089996843
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.01,
+          "confidently_wrong": 0.04,
+          "declared_wrong": 0.02,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 414.26,
+          "brier": null,
+          "runtime_s": 0.8527675500002806
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.04,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 411.23,
+          "brier": null,
+          "runtime_s": 0.8603536099998018
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.27,
+          "confidently_wrong": 0.16,
+          "declared_wrong": 0.03,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 387.08,
+          "brier": null,
+          "runtime_s": 1.9254893129997799
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.13,
+          "confidently_wrong": 0.13,
+          "declared_wrong": 0.02,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 402.59,
+          "brier": null,
+          "runtime_s": 1.6620763860006265
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.06,
+          "confidently_wrong": 0.07,
+          "declared_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 403.22,
+          "brier": null,
+          "runtime_s": 1.3804811460001656
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.18,
+          "confidently_wrong": 0.12,
+          "declared_wrong": 0.03,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 400.26,
+          "brier": null,
+          "runtime_s": 2.791498927000357
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": -21.79,
+        "ci95": [
+          -63.330625,
+          18.00124999999999
+        ],
+        "relative": -0.0278753222164655,
+        "severity_diff": 0.06,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R6": {
+      "expected": "static maximin >= adaptive",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.39,
+          "decided": 0.0,
+          "cost": 52.055,
+          "brier": 0.7212153960682421,
+          "runtime_s": 0.11973466200041002
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.39,
+          "decided": 0.0,
+          "cost": 50.72,
+          "brier": 0.7376029661948934,
+          "runtime_s": 0.12152876399974048
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.38,
+          "decided": 0.0,
+          "cost": 51.21,
+          "brier": 0.7359382952405964,
+          "runtime_s": 0.11430728900020767
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.36,
+          "decided": 0.0,
+          "cost": 51.43,
+          "brier": 0.7379227165798353,
+          "runtime_s": 0.11735371000002487
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.36,
+          "decided": 0.0,
+          "cost": 51.43,
+          "brier": 0.7427752923884486,
+          "runtime_s": 0.12003439000014623
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.36,
+          "decided": 0.0,
+          "cost": 51.195,
+          "brier": 0.6854585474020698,
+          "runtime_s": 0.1254678630001581
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.41,
+          "decided": 0.0,
+          "cost": 51.115,
+          "brier": 0.6868103426665639,
+          "runtime_s": 0.14809612200006086
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.42,
+          "decided": 0.0,
+          "cost": 51.1,
+          "brier": 0.6952756868642678,
+          "runtime_s": 0.13886680399977194
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.42,
+          "decided": 0.0,
+          "cost": 51.005,
+          "brier": 0.6534805445563296,
+          "runtime_s": 0.14392638399949648
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 0.43,
+          "decided": 0.0,
+          "cost": 51.855,
+          "brier": 0.6167252461673064,
+          "runtime_s": 0.16512590799968166
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": 0.76,
+        "ci95": [
+          -0.81,
+          2.2902499999999986
+        ],
+        "relative": 0.00749211356466877,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R7": {
+      "expected": "stratified >= adaptive",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.01,
+          "confidently_wrong": 0.52,
+          "declared_wrong": 0.46,
+          "top1": 0.29,
+          "decided": 0.02,
+          "cost": 334.295,
+          "brier": 0.9375663626043486,
+          "runtime_s": 0.8073591959996702
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.39,
+          "declared_wrong": 0.37,
+          "top1": 0.37,
+          "decided": 0.02,
+          "cost": 341.265,
+          "brier": 0.9336214311039462,
+          "runtime_s": 0.8564568570001575
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.5,
+          "declared_wrong": 0.48,
+          "top1": 0.34,
+          "decided": 0.01,
+          "cost": 336.555,
+          "brier": 0.9442431663563435,
+          "runtime_s": 0.8112923340001725
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.06,
+          "confidently_wrong": 0.46,
+          "declared_wrong": 0.39,
+          "top1": 0.37,
+          "decided": 0.06,
+          "cost": 343.18,
+          "brier": 0.9037111409405684,
+          "runtime_s": 0.6935028330000205
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.0,
+          "confidently_wrong": 0.46,
+          "declared_wrong": 0.44,
+          "top1": 0.29,
+          "decided": 0.0,
+          "cost": 344.52,
+          "brier": 0.9608592208215815,
+          "runtime_s": 0.6879349480003293
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.05,
+          "confidently_wrong": 0.43,
+          "declared_wrong": 0.41,
+          "top1": 0.35,
+          "decided": 0.06,
+          "cost": 339.785,
+          "brier": 0.904352423810024,
+          "runtime_s": 0.7405659260005631
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.2,
+          "confidently_wrong": 0.42,
+          "declared_wrong": 0.35,
+          "top1": 0.51,
+          "decided": 0.25,
+          "cost": 308.485,
+          "brier": 0.7479202702822783,
+          "runtime_s": 1.4671531250001864
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.11,
+          "confidently_wrong": 0.54,
+          "declared_wrong": 0.49,
+          "top1": 0.38,
+          "decided": 0.15,
+          "cost": 286.43,
+          "brier": 0.8929997829245374,
+          "runtime_s": 1.1297401259995241
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.4,
+          "declared_wrong": 0.36,
+          "top1": 0.35,
+          "decided": 0.02,
+          "cost": 337.01,
+          "brier": 0.9439278013387267,
+          "runtime_s": 1.2148561120003434
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.14,
+          "confidently_wrong": 0.51,
+          "declared_wrong": 0.47,
+          "top1": 0.45,
+          "decided": 0.19,
+          "cost": 292.28,
+          "brier": 0.7686343854385079,
+          "runtime_s": 1.9086114619996806
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -121.85,
+        "ci95": [
+          -172.930375,
+          -72.57287500000004
+        ],
+        "relative": -0.18323583813290426,
+        "severity_diff": 0.08000000000000002,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R8": {
+      "expected": "adaptive may lose",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.15,
+          "confidently_wrong": 0.55,
+          "declared_wrong": 0.52,
+          "top1": 0.4,
+          "decided": 0.16,
+          "cost": 305.02,
+          "brier": 0.9303230476927168,
+          "runtime_s": 0.5295402930001728
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.1,
+          "confidently_wrong": 0.53,
+          "declared_wrong": 0.5,
+          "top1": 0.39,
+          "decided": 0.12,
+          "cost": 313.345,
+          "brier": 0.9878647662868423,
+          "runtime_s": 0.5452962150003441
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.1,
+          "confidently_wrong": 0.6,
+          "declared_wrong": 0.6,
+          "top1": 0.29,
+          "decided": 0.11,
+          "cost": 289.885,
+          "brier": 1.096901772928304,
+          "runtime_s": 0.4947624900002847
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.2,
+          "confidently_wrong": 0.44,
+          "declared_wrong": 0.4,
+          "top1": 0.47,
+          "decided": 0.23,
+          "cost": 316.485,
+          "brier": 0.8781787563219823,
+          "runtime_s": 0.4657364799997595
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.08,
+          "confidently_wrong": 0.49,
+          "declared_wrong": 0.48,
+          "top1": 0.36,
+          "decided": 0.08,
+          "cost": 317.15,
+          "brier": 1.039964072268311,
+          "runtime_s": 0.4659655109999585
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.15,
+          "confidently_wrong": 0.44,
+          "declared_wrong": 0.41,
+          "top1": 0.46,
+          "decided": 0.16,
+          "cost": 317.2,
+          "brier": 0.9172636759125087,
+          "runtime_s": 0.4786497419997613
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.21,
+          "confidently_wrong": 0.62,
+          "declared_wrong": 0.59,
+          "top1": 0.38,
+          "decided": 0.24,
+          "cost": 240.66,
+          "brier": 0.9860828173912967,
+          "runtime_s": 0.7693615970000246
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.23,
+          "confidently_wrong": 0.57,
+          "declared_wrong": 0.56,
+          "top1": 0.42,
+          "decided": 0.27,
+          "cost": 250.985,
+          "brier": 0.9733562985986586,
+          "runtime_s": 0.7133863380001276
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.09,
+          "confidently_wrong": 0.66,
+          "declared_wrong": 0.65,
+          "top1": 0.3,
+          "decided": 0.11,
+          "cost": 266.84,
+          "brier": 1.076788699057171,
+          "runtime_s": 0.7235176809995756
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.21,
+          "confidently_wrong": 0.67,
+          "declared_wrong": 0.67,
+          "top1": 0.45,
+          "decided": 0.24,
+          "cost": 217.79,
+          "brier": 0.8834329818887265,
+          "runtime_s": 0.9150245089999225
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -128.005,
+        "ci95": [
+          -180.91649999999998,
+          -77.955
+        ],
+        "relative": -0.2212437561574226,
+        "severity_diff": 0.12999999999999995,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R9": {
+      "expected": "negative interference possible",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.58,
+          "declared_wrong": 0.56,
+          "top1": 0.28,
+          "decided": 0.03,
+          "cost": 307.815,
+          "brier": 0.9457583950716068,
+          "runtime_s": 0.46327243399995494
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.01,
+          "confidently_wrong": 0.62,
+          "declared_wrong": 0.6,
+          "top1": 0.26,
+          "decided": 0.02,
+          "cost": 293.46,
+          "brier": 0.9753885621938706,
+          "runtime_s": 0.4406825139998546
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.02,
+          "confidently_wrong": 0.59,
+          "declared_wrong": 0.56,
+          "top1": 0.3,
+          "decided": 0.02,
+          "cost": 303.835,
+          "brier": 0.9353784592645337,
+          "runtime_s": 0.4499031900001137
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.05,
+          "confidently_wrong": 0.51,
+          "declared_wrong": 0.51,
+          "top1": 0.37,
+          "decided": 0.06,
+          "cost": 311.0,
+          "brier": 0.8645500537217103,
+          "runtime_s": 0.39599986699999135
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.04,
+          "confidently_wrong": 0.52,
+          "declared_wrong": 0.5,
+          "top1": 0.3,
+          "decided": 0.04,
+          "cost": 321.165,
+          "brier": 0.9280701285793879,
+          "runtime_s": 0.4022297150002851
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.04,
+          "confidently_wrong": 0.61,
+          "declared_wrong": 0.56,
+          "top1": 0.28,
+          "decided": 0.04,
+          "cost": 301.75,
+          "brier": 1.0226843751355024,
+          "runtime_s": 0.40476999699953015
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.1,
+          "confidently_wrong": 0.77,
+          "declared_wrong": 0.74,
+          "top1": 0.2,
+          "decided": 0.14,
+          "cost": 215.365,
+          "brier": 1.151376799814652,
+          "runtime_s": 0.5749773630001437
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.09,
+          "confidently_wrong": 0.7,
+          "declared_wrong": 0.68,
+          "top1": 0.25,
+          "decided": 0.12,
+          "cost": 238.43,
+          "brier": 1.0252785725046552,
+          "runtime_s": 0.5560551119999582
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.03,
+          "confidently_wrong": 0.69,
+          "declared_wrong": 0.61,
+          "top1": 0.2,
+          "decided": 0.04,
+          "cost": 261.805,
+          "brier": 1.0902662468791222,
+          "runtime_s": 0.6013003190007293
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.04,
+          "confidently_wrong": 0.77,
+          "declared_wrong": 0.76,
+          "top1": 0.15,
+          "decided": 0.09,
+          "cost": 215.525,
+          "brier": 1.1647877315651267,
+          "runtime_s": 0.8027558800001862
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -154.13,
+        "ci95": [
+          -209.32662499999998,
+          -97.854375
+        ],
+        "relative": -0.25566678554544625,
+        "severity_diff": 0.18999999999999995,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R10": {
+      "expected": "adaptive wins (positive control)",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.24,
+          "confidently_wrong": 0.08,
+          "declared_wrong": 0.04,
+          "top1": 0.75,
+          "decided": 0.24,
+          "cost": 185.38,
+          "brier": 0.36908180305704824,
+          "runtime_s": 0.13786977400020986
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.14,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.03,
+          "top1": 0.61,
+          "decided": 0.14,
+          "cost": 190.55,
+          "brier": 0.6078140097441184,
+          "runtime_s": 0.14563735800045832
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.14,
+          "confidently_wrong": 0.08,
+          "declared_wrong": 0.02,
+          "top1": 0.68,
+          "decided": 0.14,
+          "cost": 190.9,
+          "brier": 0.49274948351306264,
+          "runtime_s": 0.13935440099994595
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.27,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.99,
+          "decided": 0.27,
+          "cost": 185.385,
+          "brier": 0.01456783144613069,
+          "runtime_s": 0.12627180899995438
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.39,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.98,
+          "decided": 0.39,
+          "cost": 181.035,
+          "brier": 0.02385544766183296,
+          "runtime_s": 0.12656875599997874
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.43,
+          "confidently_wrong": 0.02,
+          "declared_wrong": 0.02,
+          "top1": 0.99,
+          "decided": 0.43,
+          "cost": 181.09,
+          "brier": 0.008976696819600078,
+          "runtime_s": 0.12251466900022934
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.79,
+          "confidently_wrong": 0.03,
+          "declared_wrong": 0.03,
+          "top1": 1.0,
+          "decided": 0.79,
+          "cost": 153.79,
+          "brier": 0.00012654256689772383,
+          "runtime_s": 0.1666313470001478
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.63,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.98,
+          "decided": 0.63,
+          "cost": 159.255,
+          "brier": 0.020359280762514337,
+          "runtime_s": 0.16296329700024217
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.57,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.97,
+          "decided": 0.57,
+          "cost": 167.535,
+          "brier": 0.030704412448309834,
+          "runtime_s": 0.17198831600013365
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.87,
+          "confidently_wrong": 0.05,
+          "declared_wrong": 0.05,
+          "top1": 0.97,
+          "decided": 0.87,
+          "cost": 153.505,
+          "brier": 0.024227273392689933,
+          "runtime_s": 0.19525557600005414
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": -20.475,
+        "ci95": [
+          -44.235,
+          3.363249999999955
+        ],
+        "relative": -0.08245409149484537,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R1": {
+      "expected": "adaptive wins",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.78,
+          "confidently_wrong": 0.2,
+          "declared_wrong": 0.2,
+          "top1": 0.89,
+          "decided": 0.78,
+          "cost": 158.41,
+          "brier": 0.11793601486404129,
+          "runtime_s": 0.5376984900009848
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.86,
+          "confidently_wrong": 0.14,
+          "declared_wrong": 0.14,
+          "top1": 0.9,
+          "decided": 0.86,
+          "cost": 206.1,
+          "brier": 0.08848968764578342,
+          "runtime_s": 0.5690491069995187
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.83,
+          "confidently_wrong": 0.13,
+          "declared_wrong": 0.13,
+          "top1": 0.93,
+          "decided": 0.83,
+          "cost": 170.13,
+          "brier": 0.08951798939746192,
+          "runtime_s": 0.5276788820000365
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.82,
+          "confidently_wrong": 0.18,
+          "declared_wrong": 0.18,
+          "top1": 0.94,
+          "decided": 0.82,
+          "cost": 74.94,
+          "brier": 0.061035942181674505,
+          "runtime_s": 0.29560680400027195
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.81,
+          "confidently_wrong": 0.19,
+          "declared_wrong": 0.19,
+          "top1": 0.94,
+          "decided": 0.81,
+          "cost": 108.63,
+          "brier": 0.07681799428402196,
+          "runtime_s": 0.6884958519997599
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.88,
+          "confidently_wrong": 0.12,
+          "declared_wrong": 0.12,
+          "top1": 0.97,
+          "decided": 0.88,
+          "cost": 64.22,
+          "brier": 0.04735780558796459,
+          "runtime_s": 0.28584773299990046
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.83,
+          "confidently_wrong": 0.17,
+          "declared_wrong": 0.17,
+          "top1": 0.93,
+          "decided": 0.83,
+          "cost": 50.82,
+          "brier": 0.08313867575300644,
+          "runtime_s": 0.3063885940000182
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.85,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.15,
+          "top1": 0.95,
+          "decided": 0.85,
+          "cost": 58.83,
+          "brier": 0.0672280056977614,
+          "runtime_s": 0.3152684409997164
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.85,
+          "confidently_wrong": 0.15,
+          "declared_wrong": 0.15,
+          "top1": 0.91,
+          "decided": 0.85,
+          "cost": 51.03,
+          "brier": 0.08057130518425705,
+          "runtime_s": 0.48109358600013363
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.89,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.11,
+          "top1": 0.98,
+          "decided": 0.89,
+          "cost": 52.74,
+          "brier": 0.027901758793185568,
+          "runtime_s": 0.29749356200016336
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -157.21,
+        "ci95": [
+          -172.18125,
+          -142.62675000000002
+        ],
+        "relative": -0.697130947629817,
+        "severity_diff": 0.009999999999999981,
+        "outcome": "win"
+      }
+    },
+    "systemlab/R2": {
+      "expected": "tie",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.99,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 1.0,
+          "decided": 0.99,
+          "cost": 4.78,
+          "brier": 0.003636403791043297,
+          "runtime_s": 0.1834491279997019
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.98,
+          "confidently_wrong": 0.02,
+          "declared_wrong": 0.02,
+          "top1": 0.98,
+          "decided": 0.98,
+          "cost": 5.38,
+          "brier": 0.022699673751503783,
+          "runtime_s": 0.20400994299998274
+        },
+        "P3": {
+          "n": 100,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 4.67,
+          "brier": 0.001317735578026209,
+          "runtime_s": 0.18142991799984884
+        },
+        "P4": {
+          "n": 100,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 3.71,
+          "brier": 0.0011363522314947444,
+          "runtime_s": 0.15067611099992065
+        },
+        "P5": {
+          "n": 100,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 4.01,
+          "brier": 0.00135803811074519,
+          "runtime_s": 0.3313694359995861
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.99,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.99,
+          "decided": 1.0,
+          "cost": 3.45,
+          "brier": 0.02064296162711542,
+          "runtime_s": 0.14222456400006195
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.99,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.99,
+          "decided": 1.0,
+          "cost": 3.45,
+          "brier": 0.02064296162711542,
+          "runtime_s": 0.14456726299948058
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.99,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.99,
+          "decided": 1.0,
+          "cost": 3.58,
+          "brier": 0.02064944343446457,
+          "runtime_s": 0.14744888199988054
+        },
+        "P9": {
+          "n": 100,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 4.06,
+          "brier": 0.0017297959154666106,
+          "runtime_s": 0.18993187599960948
+        },
+        "P10": {
+          "n": 100,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "declared_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 3.62,
+          "brier": 0.001209968501082552,
+          "runtime_s": 0.14578302600013557
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -0.09,
+        "ci95": [
+          -0.36,
+          0.16024999999999864
+        ],
+        "relative": -0.02425876010781671,
+        "severity_diff": 0.01,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R3": {
+      "expected": "guarded ~ baselines on safety",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.55,
+          "confidently_wrong": 0.46,
+          "declared_wrong": 0.45,
+          "top1": 0.02,
+          "decided": 0.44,
+          "cost": 122.28,
+          "brier": 0.0023641539234567793,
+          "runtime_s": 0.4269754570000077
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.67,
+          "confidently_wrong": 0.35,
+          "declared_wrong": 0.32,
+          "top1": 0.0,
+          "decided": 0.3,
+          "cost": 179.14,
+          "brier": null,
+          "runtime_s": 0.47183000499979244
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.58,
+          "confidently_wrong": 0.41,
+          "declared_wrong": 0.41,
+          "top1": 0.0,
+          "decided": 0.37,
+          "cost": 144.58,
+          "brier": null,
+          "runtime_s": 0.45889772300033654
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.52,
+          "confidently_wrong": 0.48,
+          "declared_wrong": 0.48,
+          "top1": 0.03,
+          "decided": 0.49,
+          "cost": 97.21,
+          "brier": 0.32023439634939166,
+          "runtime_s": 0.329831293000243
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.43,
+          "confidently_wrong": 0.58,
+          "declared_wrong": 0.57,
+          "top1": 0.02,
+          "decided": 0.54,
+          "cost": 128.66,
+          "brier": 0.00011401991939460653,
+          "runtime_s": 0.7351985990000685
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.52,
+          "confidently_wrong": 0.48,
+          "declared_wrong": 0.48,
+          "top1": 0.08,
+          "decided": 0.56,
+          "cost": 73.27,
+          "brier": 0.000985853617951532,
+          "runtime_s": 0.2869483209996542
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.51,
+          "confidently_wrong": 0.49,
+          "declared_wrong": 0.49,
+          "top1": 0.13,
+          "decided": 0.61,
+          "cost": 49.84,
+          "brier": 0.0005418961522842805,
+          "runtime_s": 0.31188294799976574
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.45,
+          "confidently_wrong": 0.55,
+          "declared_wrong": 0.55,
+          "top1": 0.1,
+          "decided": 0.64,
+          "cost": 59.14,
+          "brier": 0.0007214092499137376,
+          "runtime_s": 0.3343972049999138
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.63,
+          "confidently_wrong": 0.37,
+          "declared_wrong": 0.37,
+          "top1": 0.13,
+          "decided": 0.49,
+          "cost": 46.7,
+          "brier": 0.09204906486013073,
+          "runtime_s": 0.42859125299983136
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.5,
+          "confidently_wrong": 0.5,
+          "declared_wrong": 0.5,
+          "top1": 0.1,
+          "decided": 0.52,
+          "cost": 67.17,
+          "brier": 0.10988453626080066,
+          "runtime_s": 0.4190532319997874
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -157.14,
+        "ci95": [
+          -189.64475,
+          -126.49375000000003
+        ],
+        "relative": -0.6214997626957759,
+        "severity_diff": 0.20000000000000007,
+        "outcome": "lose"
+      }
+    },
+    "systemlab/R10": {
+      "expected": "adaptive wins (positive control)",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.89,
+          "confidently_wrong": 0.07,
+          "declared_wrong": 0.07,
+          "top1": 0.93,
+          "decided": 0.89,
+          "cost": 93.74,
+          "brier": 0.05496124054157811,
+          "runtime_s": 0.31114206799968086
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.88,
+          "confidently_wrong": 0.07,
+          "declared_wrong": 0.07,
+          "top1": 0.97,
+          "decided": 0.88,
+          "cost": 142.93,
+          "brier": 0.04770996959721039,
+          "runtime_s": 0.33631667499983453
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.89,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.95,
+          "decided": 0.89,
+          "cost": 92.11,
+          "brier": 0.048347386662491346,
+          "runtime_s": 0.2981126870003936
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.95,
+          "confidently_wrong": 0.05,
+          "declared_wrong": 0.05,
+          "top1": 0.97,
+          "decided": 0.96,
+          "cost": 48.78,
+          "brier": 0.03968830515506137,
+          "runtime_s": 0.1901812969999446
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.96,
+          "confidently_wrong": 0.01,
+          "declared_wrong": 0.01,
+          "top1": 0.99,
+          "decided": 0.96,
+          "cost": 87.64,
+          "brier": 0.01579623534705393,
+          "runtime_s": 0.4783780619999743
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.94,
+          "confidently_wrong": 0.06,
+          "declared_wrong": 0.06,
+          "top1": 0.96,
+          "decided": 0.94,
+          "cost": 39.23,
+          "brier": 0.03858277414699901,
+          "runtime_s": 0.17803407900006277
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.94,
+          "confidently_wrong": 0.06,
+          "declared_wrong": 0.06,
+          "top1": 0.99,
+          "decided": 0.94,
+          "cost": 34.67,
+          "brier": 0.030679356167966413,
+          "runtime_s": 0.21684139399985725
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.96,
+          "confidently_wrong": 0.04,
+          "declared_wrong": 0.04,
+          "top1": 1.0,
+          "decided": 0.96,
+          "cost": 41.42,
+          "brier": 0.020641728495803372,
+          "runtime_s": 0.22582543500044266
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.79,
+          "confidently_wrong": 0.21,
+          "declared_wrong": 0.21,
+          "top1": 0.85,
+          "decided": 0.8,
+          "cost": 34.04,
+          "brier": 0.1234244818868529,
+          "runtime_s": 0.3407719910000742
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.96,
+          "confidently_wrong": 0.04,
+          "declared_wrong": 0.04,
+          "top1": 0.98,
+          "decided": 0.96,
+          "cost": 35.14,
+          "brier": 0.02081742705313181,
+          "runtime_s": 0.19815566199991735
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P5",
+        "mean_diff": -52.45,
+        "ci95": [
+          -67.27199999999999,
+          -39.70875000000001
+        ],
+        "relative": -0.5500786575773466,
+        "severity_diff": 0.03,
+        "outcome": "lose"
+      }
+    },
+    "systemlab/R11": {
+      "expected": "automata learning wins (not in v0 policy set)",
+      "policies": {
+        "P1": {
+          "n": 100,
+          "correct": 0.76,
+          "confidently_wrong": 0.24,
+          "declared_wrong": 0.24,
+          "top1": 0.0,
+          "decided": 0.24,
+          "cost": 42.84,
+          "brier": null,
+          "runtime_s": 0.11798371900003986
+        },
+        "P2": {
+          "n": 100,
+          "correct": 0.89,
+          "confidently_wrong": 0.11,
+          "declared_wrong": 0.11,
+          "top1": 0.0,
+          "decided": 0.11,
+          "cost": 44.7,
+          "brier": null,
+          "runtime_s": 0.12252911199990195
+        },
+        "P3": {
+          "n": 100,
+          "correct": 0.84,
+          "confidently_wrong": 0.16,
+          "declared_wrong": 0.16,
+          "top1": 0.0,
+          "decided": 0.16,
+          "cost": 43.32,
+          "brier": null,
+          "runtime_s": 0.11930186300072819
+        },
+        "P4": {
+          "n": 100,
+          "correct": 0.75,
+          "confidently_wrong": 0.25,
+          "declared_wrong": 0.25,
+          "top1": 0.0,
+          "decided": 0.25,
+          "cost": 42.6,
+          "brier": null,
+          "runtime_s": 0.11789367599965772
+        },
+        "P5": {
+          "n": 100,
+          "correct": 0.87,
+          "confidently_wrong": 0.13,
+          "declared_wrong": 0.13,
+          "top1": 0.0,
+          "decided": 0.13,
+          "cost": 83.28,
+          "brier": null,
+          "runtime_s": 0.31666552500013495
+        },
+        "P6": {
+          "n": 100,
+          "correct": 0.72,
+          "confidently_wrong": 0.28,
+          "declared_wrong": 0.28,
+          "top1": 0.0,
+          "decided": 0.28,
+          "cost": 40.44,
+          "brier": null,
+          "runtime_s": 0.10943669600019348
+        },
+        "P7": {
+          "n": 100,
+          "correct": 0.72,
+          "confidently_wrong": 0.28,
+          "declared_wrong": 0.28,
+          "top1": 0.0,
+          "decided": 0.28,
+          "cost": 40.44,
+          "brier": null,
+          "runtime_s": 0.11132885099978011
+        },
+        "P8": {
+          "n": 100,
+          "correct": 0.76,
+          "confidently_wrong": 0.24,
+          "declared_wrong": 0.24,
+          "top1": 0.0,
+          "decided": 0.24,
+          "cost": 41.46,
+          "brier": null,
+          "runtime_s": 0.1135921080000844
+        },
+        "P9": {
+          "n": 100,
+          "correct": 0.91,
+          "confidently_wrong": 0.09,
+          "declared_wrong": 0.09,
+          "top1": 0.0,
+          "decided": 0.09,
+          "cost": 44.76,
+          "brier": null,
+          "runtime_s": 0.1354280759998801
+        },
+        "P10": {
+          "n": 100,
+          "correct": 0.85,
+          "confidently_wrong": 0.07,
+          "declared_wrong": 0.07,
+          "top1": 0.0,
+          "decided": 0.07,
+          "cost": 282.9,
+          "brier": null,
+          "runtime_s": 0.7023784199994406
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 0.6,
+        "ci95": [
+          -0.72,
+          1.92
+        ],
+        "relative": 0.013089005235602092,
+        "severity_diff": 0.15,
+        "outcome": "lose"
+      }
+    }
+  }
+}
