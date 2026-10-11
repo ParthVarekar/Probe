@@ -49,7 +49,35 @@ def build_parser() -> argparse.ArgumentParser:
     ver = sub.add_parser("verify", help="verify a bundle: hash chain, ordering, replay")
     ver.add_argument("bundle", type=Path)
     ver.add_argument("--no-replay", action="store_true")
+
+    rep = sub.add_parser("report", help="render the HTML report of a bundle (verifies it first)")
+    rep.add_argument("bundle", type=Path)
+    rep.add_argument("--out", type=Path, default=None)
     return parser
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    import zipfile
+
+    from probe.bundle import verify_bundle
+    from probe.report import render_report
+
+    ver = verify_bundle(args.bundle)
+    with zipfile.ZipFile(args.bundle) as z:
+        events = [json.loads(x) for x in z.read("ledger.jsonl").decode().splitlines() if x]
+        manifest = json.loads(z.read("manifest.json"))
+        last = [
+            e
+            for e in events
+            if e["experiment_id"] == manifest["experiment_id"] and e["type"] == "run_record"
+        ]
+        record = json.loads(z.read(f"blobs/{last[-1]['payload_hash']}"))
+    run = manifest["run"]
+    label = f"{run['family']}/{run['regime']}"
+    out = args.out or args.bundle.with_suffix(".html")
+    out.write_text(render_report(record, world_label=label, verification=ver), encoding="utf-8")
+    print(out)
+    return 0
 
 
 def _cmd_record(args: argparse.Namespace) -> int:
@@ -123,6 +151,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_export(args)
     if args.command == "verify":
         return _cmd_verify(args)
+    if args.command == "report":
+        return _cmd_report(args)
     return 0
 
 
