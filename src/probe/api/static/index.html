@@ -210,7 +210,8 @@ function reset(id){
   current = id; hyps = []; residual = null; series = [];
   $('log').innerHTML=''; $('why').innerHTML='<div class="empty">No decision yet.</div>';
   $('post').innerHTML='<div class="empty">Available once the run has stopped.</div>';
-  $('status').innerHTML = `<div class="mono">${esc(id)}</div><div>running…</div>`;
+  $('status').innerHTML = `<div class="mono">${esc(id)}</div><div>running… <button class="secondary" style="width:auto;margin:0 0 0 8px;padding:2px 10px" id="stopbtn">Stop (user stop, logged)</button></div>`;
+  $('stopbtn').onclick = async ()=>{ try{ await api(`/api/runs/${encodeURIComponent(id)}/cancel`,{method:'POST'}); }catch(e){} };
   draw();
 }
 function watch(id){

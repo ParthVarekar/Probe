@@ -72,3 +72,16 @@ def test_ledger_head_links(tmp_path):
         a = led.append("e", "t", {"a": 1})
         b = led.append("e", "t", {"a": 2})
     assert b.prev_hash == a.hash
+
+
+def test_user_stopped_run_records_and_verifies(tmp_path):
+    calls = [0]
+
+    def stop():
+        calls[0] += 1
+        return calls[0] > 6  # stop before step 6
+
+    exp, m = record_run(tmp_path / "ws", "systemlab", "R1", 0, "P8", stop_requested=stop)
+    assert m["stop_reason"] == "user_stopped"
+    rep = verify_bundle(export_bundle(tmp_path / "ws", exp, tmp_path / "u.zip"))
+    assert rep["ok"], rep["problems"]

@@ -165,7 +165,8 @@ def create_app(workspace: Path, results_dir: Path | None = None) -> FastAPI:
             with ledger() as led:
                 if any(True for _ in led.events(exp)):
                     return {"experiment_id": exp, "status": "completed"}
-            jobs[exp] = {"status": "running"}
+            cancel = threading.Event()
+            jobs[exp] = {"status": "running", "cancel": cancel}
 
         def work() -> None:
             try:
@@ -177,6 +178,7 @@ def create_app(workspace: Path, results_dir: Path | None = None) -> FastAPI:
                     req.policy,
                     req.budget,
                     experiment_id=exp,
+                    stop_requested=cancel.is_set,
                 )
                 jobs[exp] = {"status": "completed", "evaluation": metrics}
             except Exception as e:  # recorded, surfaced on the job
@@ -184,6 +186,16 @@ def create_app(workspace: Path, results_dir: Path | None = None) -> FastAPI:
 
         threading.Thread(target=work, daemon=True).start()
         return {"experiment_id": exp, "status": "running"}
+
+    @app.post("/api/runs/{exp}/cancel")
+    def cancel_run(exp: str) -> dict[str, Any]:
+        """Cooperative stop: the run ends at the next step boundary with reason
+        ``user_stopped``, recorded in the ledger like any other stop."""
+        j = jobs.get(exp)
+        if not j or j["status"] != "running":
+            raise HTTPException(409, "run is not running")
+        j["cancel"].set()
+        return {"experiment_id": exp, "status": "cancelling"}
 
     @app.get("/api/runs")
     def runs() -> list[dict[str, Any]]:

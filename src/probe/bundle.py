@@ -39,6 +39,7 @@ def record_run(
     policy_id: str,
     budget_key: str = "medium",
     experiment_id: str | None = None,
+    stop_requested: Any = None,
 ) -> tuple[str, dict[str, Any]]:
     """Run and record one experiment; returns ``(experiment_id, metrics)``."""
     from probe.run import get_family, make_protocol, run_world
@@ -77,7 +78,15 @@ def record_run(
             actor = "simulator" if ev["type"] == "observation" else "engine"
             led.append(exp, str(ev["type"]), to_jsonable(dict(ev)), actor=actor)
 
-        record, metrics = run_world(family, regime, seed, policy_id, budget_key, on_event=on_event)
+        record, metrics = run_world(
+            family,
+            regime,
+            seed,
+            policy_id,
+            budget_key,
+            on_event=on_event,
+            stop_requested=stop_requested,
+        )
         led.append(
             exp, "truth_commitment", {"commitment": record.truth_commitment}, actor="simulator"
         )
@@ -153,8 +162,23 @@ def verify_bundle(path: Path, *, replay: bool = True, rtol: float = 1e-9) -> dic
                 f"bundle made by probe {run.get('probe_version')}, "
                 f"verifier is {__version__}; replay may differ"
             )
+        stop_fn = None
+        if record["stop"].get("reason") == "user_stopped":
+            # replay the user's stop at the same step boundary (stop_requested is
+            # polled exactly once per step, before that step's decision)
+            n_steps, calls = len(record["steps"]), [0]
+
+            def stop_fn() -> bool:
+                calls[0] += 1
+                return calls[0] > n_steps
+
         rec, _ = run_world(
-            run["family"], run["regime"], run["seed"], run["policy"], run["budget_key"]
+            run["family"],
+            run["regime"],
+            run["seed"],
+            run["policy"],
+            run["budget_key"],
+            stop_requested=stop_fn,
         )
         again = to_jsonable(rec)
         replay_ok = True
