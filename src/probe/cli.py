@@ -53,7 +53,31 @@ def build_parser() -> argparse.ArgumentParser:
     rep = sub.add_parser("report", help="render the HTML report of a bundle (verifies it first)")
     rep.add_argument("bundle", type=Path)
     rep.add_argument("--out", type=Path, default=None)
+
+    for name, help_ in (
+        ("serve", "start the local web app"),
+        ("demo", "start the local web app and open the browser"),
+    ):
+        sp = sub.add_parser(name, help=help_)
+        sp.add_argument("--workspace", type=Path, default=Path("probe_workspace"))
+        sp.add_argument("--port", type=int, default=8765)
     return parser
+
+
+def _cmd_serve(args: argparse.Namespace, open_browser: bool) -> int:
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from probe.api import create_app
+
+    url = f"http://127.0.0.1:{args.port}/"
+    print(f"PROBE {__version__} on {url} (workspace {args.workspace}); Ctrl+C to stop")
+    if open_browser:
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    uvicorn.run(create_app(args.workspace), host="127.0.0.1", port=args.port, log_level="warning")
+    return 0
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
@@ -153,6 +177,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_verify(args)
     if args.command == "report":
         return _cmd_report(args)
+    if args.command in ("serve", "demo"):
+        return _cmd_serve(args, open_browser=args.command == "demo")
     return 0
 
 

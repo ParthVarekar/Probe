@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROBE</title>
+<style>
+:root{--bg:#f7f7f5;--panel:#fff;--fg:#1b1b1b;--mut:#6b6b6b;--line:#e2e2de;--acc:#2f5bd3;
+--ok:#1b7f3b;--bad:#b3261e;--warn:#9a6700;
+--h0:#3366cc;--h1:#dc7633;--h2:#239b56;--h3:#8e44ad;--h4:#c0392b;--h5:#16a085}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101112;--panel:#17181a;
+--fg:#e9e9e6;--mut:#9a9a96;--line:#2a2b2e;--acc:#7aa2ff}}
+:root[data-theme="dark"]{--bg:#101112;--panel:#17181a;--fg:#e9e9e6;--mut:#9a9a96;--line:#2a2b2e;--acc:#7aa2ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:16px;margin:0;letter-spacing:.04em}
+.sim{border:1.5px solid var(--bad);color:var(--bad);font-weight:700;font-size:11px;padding:1px 6px;letter-spacing:.1em}
+main{display:grid;grid-template-columns:300px 1fr;gap:12px;padding:12px 16px;max-width:1400px;margin:0 auto}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;min-width:0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:0 0 8px}
+label{display:block;font-size:12px;color:var(--mut);margin-top:8px}
+select,input,button{font:inherit;width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--fg)}
+button{background:var(--acc);color:#fff;border:0;cursor:pointer;margin-top:12px;font-weight:600}
+button.secondary{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+.exp{font-size:12px;color:var(--mut);margin-top:6px}
+.num{font-variant-numeric:tabular-nums}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+svg text{fill:var(--mut);font-size:11px}
+.gl{stroke:var(--line)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{text-align:left;padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{max-height:340px;overflow:auto}
+.badge{display:inline-block;padding:0 6px;border-radius:3px;font-size:11px;font-weight:600;color:#fff}
+.b-model{background:var(--acc)}.b-audit{background:var(--warn)}.b-warmup{background:#777}
+.b-schedule,.b-random,.b-oracle{background:#555}
+.verdict{font-size:18px;font-weight:700;margin:4px 0}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.legend span{display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px}
+.legend i{width:14px;height:3px;display:inline-block}
+.empty{color:var(--mut);padding:24px;text-align:center}
+.runs li{cursor:pointer;padding:3px 0;font-size:12px}
+.runs{list-style:none;padding:0;margin:0}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>PROBE</h1><span class="sim">SIMULATED</span>
+  <span style="color:var(--mut);font-size:12px">verifiable adaptive experimentation · <span id="ver"></span></span>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>Experiment</h2>
+      <label for="family">Environment</label>
+      <select id="family"></select>
+      <label for="regime">Regime</label>
+      <select id="regime"></select>
+      <div class="exp" id="expected"></div>
+      <label for="policy">Selection policy</label>
+      <select id="policy"></select>
+      <label for="seed">World seed</label>
+      <input id="seed" type="number" min="0" value="0">
+      <label for="budget">Budget</label>
+      <select id="budget"><option>small</option><option selected>medium</option><option>large</option></select>
+      <button id="run">Lock protocol &amp; run</button>
+    </section>
+    <section style="margin-top:12px">
+      <h2>Recorded runs</h2>
+      <ul class="runs" id="runs"></ul>
+    </section>
+  </div>
+  <div style="display:grid;gap:12px;min-width:0">
+    <section>
+      <h2>Status</h2>
+      <div id="status" class="empty">Choose a world and press <b>Lock protocol &amp; run</b>.</div>
+    </section>
+    <div class="grid2">
+      <section>
+        <h2>Posterior over hypotheses</h2>
+        <div class="legend" id="legend"></div>
+        <svg id="chart" viewBox="0 0 520 220" role="img" aria-label="Posterior probability by step" style="width:100%"></svg>
+        <div class="exp">Dashed line: residual hypothesis. Grey line at 0.95: decision threshold π*. Values come from the ledger; the chart computes nothing.</div>
+      </section>
+      <section>
+        <h2>Why this next</h2>
+        <div id="why" class="empty">No decision yet.</div>
+      </section>
+    </div>
+    <section>
+      <h2>Ledger (decisions are committed before their observation)</h2>
+      <div class="scroll"><table><thead><tr><th>seq</th><th>step</th><th>event</th><th>detail</th></tr></thead><tbody id="log"></tbody></table></div>
+    </section>
+    <section>
+      <h2>Verify &amp; report</h2>
+      <div id="post" class="empty">Available once the run has stopped.</div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const COLORS = ['--h0','--h1','--h2','--h3','--h4','--h5'];
+let META = null, ES = null, current = null, hyps = [], residual = null, series = [];
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fmt(x,d=3){return (x===null||x===undefined)?'—':(typeof x==='number'?Number(x.toPrecision(d)):x)}
+
+async function api(path, opts){const r = await fetch(path, opts); if(!r.ok) throw new Error(await r.text()); return r.json();}
+
+async function init(){
+  META = await api('/api/meta');
+  $('ver').textContent = 'v' + META.version;
+  $('family').innerHTML = Object.keys(META.families).map(f=>`<option>${f}</option>`).join('');
+  $('policy').innerHTML = Object.entries(META.policies).map(([k,v])=>`<option value="${k}" ${k==='P8'?'selected':''}>${k} · ${esc(v)}</option>`).join('');
+  $('family').onchange = fillRegimes; $('regime').onchange = showExpected;
+  fillRegimes(); refreshRuns();
+  $('run').onclick = startRun;
+}
+function fillRegimes(){
+  const rs = META.families[$('family').value];
+  $('regime').innerHTML = Object.entries(rs).map(([k,v])=>`<option value="${k}">${k} · ${esc(v.title)}</option>`).join('');
+  showExpected();
+}
+function showExpected(){
+  const r = META.families[$('family').value][$('regime').value];
+  $('expected').innerHTML = r ? `Pre-registered expectation: <i>${esc(r.expected)}</i>` : '';
+}
+async function refreshRuns(){
+  const rs = await api('/api/runs');
+  $('runs').innerHTML = rs.map(r=>`<li data-id="${esc(r.experiment_id)}"><span class="mono">${esc(r.experiment_id)}</span> · ${esc(r.status)}</li>`).join('') || '<li class="empty">none yet</li>';
+  document.querySelectorAll('#runs li[data-id]').forEach(li=>li.onclick=()=>watch(li.dataset.id));
+}
+async function startRun(){
+  $('run').disabled = true;
+  try{
+    const body = {family:$('family').value, regime:$('regime').value, seed:+$('seed').value, policy:$('policy').value, budget:$('budget').value};
+    const r = await api('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    watch(r.experiment_id);
+  }catch(e){$('status').innerHTML = `<span class="bad">${esc(e.message)}</span>`}
+  finally{$('run').disabled = false}
+}
+function reset(id){
+  current = id; hyps = []; residual = null; series = [];
+  $('log').innerHTML=''; $('why').innerHTML='<div class="empty">No decision yet.</div>';
+  $('post').innerHTML='<div class="empty">Available once the run has stopped.</div>';
+  $('status').innerHTML = `<div class="mono">${esc(id)}</div><div>running…</div>`;
+  draw();
+}
+function watch(id){
+  if(ES) ES.close();
+  reset(id);
+  ES = new EventSource(`/api/runs/${encodeURIComponent(id)}/stream`);
+  ES.addEventListener('ledger', ev => handle(JSON.parse(ev.data)));
+  ES.addEventListener('done', () => {ES.close(); finished(id); refreshRuns();});
+}
+function handle(e){
+  const p = e.payload; let detail = '';
+  if(e.type==='protocol_locked'){
+    hyps = p.hypothesis_set.hypotheses.map(h=>h.id);
+    residual = (p.hypothesis_set.hypotheses.find(h=>h.is_residual)||{}).id;
+    detail = `protocol <code>${p.protocol_hash.slice(0,12)}…</code> · budget ${p.protocol.budget} · π*=${p.protocol.pi_star} · α=${p.protocol.alpha}`;
+    legend();
+  } else if(e.type==='decision'){
+    detail = `<span class="badge b-${esc(p.mode)}">${esc(p.mode)}</span> <code>${esc(p.action_id)}</code>`;
+    $('why').innerHTML = `<div><span class="badge b-${esc(p.mode)}">${esc(p.mode)}</span> step ${p.step}</div><div class="mono" style="margin:6px 0">${esc(p.action_id)}</div><div>${esc(p.reason)}</div><div class="exp">decision hash <code>${esc(p.decision_hash.slice(0,16))}…</code> committed before execution</div>`;
+  } else if(e.type==='observation'){
+    detail = p.value===null ? `<span class="bad">missing</span> (${esc(p.missingness)})` : `y = ${fmt(p.value,4)}`;
+    series.push(p.weights); draw();
+  } else if(e.type==='stopped'){
+    detail = `<b>${esc(p.reason)}</b> → verdict <b>${esc(p.verdict)}</b>`;
+    $('status').innerHTML = `<div class="mono">${esc(current)}</div><div class="verdict">${esc(p.verdict)}${p.verdict==='hypothesis'?': '+esc(p.leader):''}</div><div>stop reason: ${esc(p.reason)} · steps ${series.length}</div>`;
+  } else if(e.type==='truth_commitment'){
+    detail = `world truth commitment <code>${esc(p.commitment.slice(0,16))}…</code>`;
+  } else if(e.type==='experiment_created'){
+    detail = `${esc(p.family)}/${esc(p.regime)} seed ${p.seed} · ${esc(p.policy)} · origin <b>${esc(p.origin)}</b>`;
+  } else if(e.type==='run_record'){
+    detail = `run record · decision-sequence hash <code>${esc(p.decision_hash.slice(0,16))}…</code>`;
+  }
+  const step = (p && p.step!==undefined) ? p.step : '';
+  $('log').insertAdjacentHTML('beforeend', `<tr><td class="num">${e.seq}</td><td class="num">${step}</td><td>${esc(e.type)}</td><td>${detail}</td></tr>`);
+}
+function legend(){
+  $('legend').innerHTML = hyps.map((h,i)=>`<span><i style="background:var(${COLORS[i%6]});${h===residual?'opacity:.7':''}"></i>${esc(h)}${h===residual?' (residual)':''}</span>`).join('');
+}
+function draw(){
+  const W=520,H=220,L=34,R=10,T=10,B=26, n=series.length;
+  const x=i=>L+(W-L-R)*(n<=1?0:i/(n-1)), y=p=>T+(H-T-B)*(1-p);
+  let s='';
+  [0,.5,1].forEach(v=>{s+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-4}" y="${y(v)+4}" text-anchor="end">${v}</text>`});
+  s+=`<line x1="${L}" x2="${W-R}" y1="${y(.95)}" y2="${y(.95)}" stroke="var(--mut)" stroke-dasharray="2 3"/>`;
+  hyps.forEach((h,i)=>{
+    if(!n) return;
+    const pts = series.map((w,k)=>`${x(k).toFixed(1)},${y(w[h]??0).toFixed(1)}`).join(' ');
+    s+=`<polyline fill="none" stroke="var(${COLORS[i%6]})" stroke-width="2" ${h===residual?'stroke-dasharray="5 3"':''} points="${pts}"/>`;
+    if(n===1) s+=`<circle cx="${x(0)}" cy="${y(series[0][h]??0)}" r="3" fill="var(${COLORS[i%6]})"/>`;
+  });
+  s+=`<text x="${(W+L)/2}" y="${H-6}" text-anchor="middle">step</text>`;
+  $('chart').innerHTML = s;
+}
+async function finished(id){
+  let ev = null;
+  try{ ev = await api(`/api/runs/${encodeURIComponent(id)}/evaluation`);}catch(e){}
+  const evHtml = ev ? `<p><b>Evaluator</b> <span class="exp">(${esc(ev.label)})</span><br>correct: <b class="${ev.correct?'ok':'bad'}">${ev.correct}</b> · confidently wrong: <b class="${ev.confidently_wrong?'bad':'ok'}">${ev.confidently_wrong}</b> · acceptable answer: <code>${esc(ev.acceptable.join(', '))}</code> · cost ${fmt(ev.cost)}</p>` : '<p class="exp">Evaluation is shown only for runs started in this server session.</p>';
+  $('post').innerHTML = `${evHtml}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" style="width:auto" id="vbtn">Verify bundle (chain + replay)</button><a href="/api/runs/${encodeURIComponent(id)}/report" target="_blank"><button style="width:auto">Open report</button></a><a href="/api/runs/${encodeURIComponent(id)}/bundle"><button class="secondary" style="width:auto">Download bundle</button></a></div><div id="vres"></div>`;
+  $('vbtn').onclick = async ()=>{
+    $('vres').textContent='verifying…';
+    const r = await api(`/api/runs/${encodeURIComponent(id)}/verify`,{method:'POST'});
+    $('vres').innerHTML = `<p class="${r.ok?'ok':'bad'}"><b>${r.ok?'Verified':'Verification failed'}</b>: ${r.events} events, chain ${r.chain_ok?'intact':'broken'}, replay ${r.replay_ok?'identical':'differs'}. ${esc(r.problems.join('; '))}</p><div class="mono">bundle sha256 ${esc(r.bundle_sha256)}</div>`;
+  };
+}
+init();
+</script>
+</body>
+</html>
