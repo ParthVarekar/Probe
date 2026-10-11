@@ -40,7 +40,21 @@ class RunRequest(BaseModel):
     budget: str = Field(default="medium", pattern="^(small|medium|large)$")
 
 
-def create_app(workspace: Path) -> FastAPI:
+class ValidateRequest(BaseModel):
+    family: str = Field(pattern="^(microclimate|systemlab)$")
+    regime: str = Field(pattern="^R[0-9]{1,2}$")
+    budget: str = Field(default="medium", pattern="^(small|medium|large)$")
+
+
+class ImportRequest(BaseModel):
+    family: str = Field(pattern="^(microclimate|systemlab)$")
+    regime: str = Field(pattern="^R[0-9]{1,2}$")
+    csv: str = Field(max_length=20 * 1024 * 1024)
+    mapping: dict[str, str] | None = None
+    name: str = Field(default="import", pattern="^[A-Za-z0-9_.-]{1,64}$")
+
+
+def create_app(workspace: Path, results_dir: Path | None = None) -> FastAPI:
     from probe.ledger import Ledger
 
     workspace = Path(workspace)
@@ -80,6 +94,62 @@ def create_app(workspace: Path) -> FastAPI:
             "families": fams,
             "policies": {p: POLICY_NAMES[p] for p in POLICY_IDS},
         }
+
+    results = Path(results_dir) if results_dir is not None else Path("results")
+
+    @app.get("/api/benchmarks")
+    def benchmarks() -> list[dict[str, Any]]:
+        out = []
+        if results.is_dir():
+            for d in sorted(results.iterdir()):
+                f = d / "summary.json"
+                if f.is_file():
+                    summ = json.loads(f.read_text(encoding="utf-8"))
+                    out.append({"name": d.name, "meta": summ["meta"], "gate": summ["gate"]})
+        return out
+
+    @app.get("/api/benchmarks/{name}/map", response_class=HTMLResponse)
+    def benchmark_map(name: str) -> FileResponse:
+        if not name.replace("_", "").replace("-", "").isalnum():
+            raise HTTPException(404)
+        f = results / name / "regime_map.html"
+        if not f.is_file():
+            raise HTTPException(404)
+        return FileResponse(f)
+
+    @app.post("/api/validate")
+    def validate(req: ValidateRequest) -> dict[str, Any]:
+        from probe.protocol import validate_protocol
+
+        return validate_protocol(req.family, req.regime, req.budget)
+
+    @app.post("/api/imports")
+    def import_csv(req: ImportRequest) -> dict[str, Any]:
+        from probe.ingest import analyze_import, parse_csv
+        from probe.run import get_family
+
+        fam = get_family(req.family)
+        if req.regime not in fam.regimes():
+            raise HTTPException(422, "unknown regime")
+        hs = fam.hypothesis_set(req.regime)
+        mapping = req.mapping or {n: n for n in [hs.outcome.name, *(c.name for c in hs.covariates)]}
+        data = req.csv.encode("utf-8")
+        try:
+            res = parse_csv(data, hs, mapping)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        out = analyze_import(res, hs)
+        exp = f"import-{req.name}-{res.raw_sha256[:12]}"
+        with ledger() as led:
+            raw = led.blobs.put(data)  # raw bytes first, immutable
+            led.append(
+                exp,
+                "import_raw",
+                {"raw_sha256": raw, "bytes": len(data), "mapping": mapping, "origin": "imported"},
+                actor="human",
+            )
+            led.append(exp, "import_analysis", out)
+        return {"experiment_id": exp, **out}
 
     @app.post("/api/runs", status_code=202)
     def start(req: RunRequest) -> dict[str, Any]:

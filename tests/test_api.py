@@ -53,3 +53,35 @@ def test_bad_request_rejected(tmp_path):
     c = _client(tmp_path)
     r = c.post("/api/runs", json={"family": "x", "regime": "R1", "seed": 0, "policy": "P8"})
     assert r.status_code == 422
+
+
+def test_validate_reports_identifiability(tmp_path):
+    c = _client(tmp_path)
+    r = c.post("/api/validate", json={"family": "microclimate", "regime": "R1"}).json()
+    assert r["ok"] and r["identifiability"]["n_designs"] > 0 and "warnings" in r
+
+
+def test_csv_import_is_l1_and_ledgered(tmp_path):
+    from probe.envs.microclimate import FAMILY
+
+    hs = FAMILY.hypothesis_set("R1")
+    names = [cv.name for cv in hs.covariates]
+    w = FAMILY.make_world("R1", 0)
+    lines = [",".join([*names, hs.outcome.name])]
+    for cand in [x for x in w.env.candidates() if x.feasible][:8]:
+        o = w.env.execute(cand.action)
+        vals = [
+            str(o.record[n]).lower() if isinstance(o.record[n], bool) else str(o.record[n])
+            for n in names
+        ]
+        lines.append(",".join([*vals, "" if o.value is None else repr(o.value)]))
+    c = _client(tmp_path)
+    r = c.post(
+        "/api/imports",
+        json={"family": "microclimate", "regime": "R1", "csv": "\n".join(lines) + "\n"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["claim_ceiling"] == "L1" and body["origin"] == "imported"
+    ev = c.get(f"/api/runs/{body['experiment_id']}/events").json()
+    assert [e["type"] for e in ev] == ["import_raw", "import_analysis"]

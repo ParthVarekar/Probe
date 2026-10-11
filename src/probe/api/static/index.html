@@ -46,6 +46,7 @@ td,th{text-align:left;padding:3px 6px;border-bottom:1px solid var(--line);vertic
 .runs li{cursor:pointer;padding:3px 0;font-size:12px}
 .runs{list-style:none;padding:0;margin:0}
 a{color:var(--acc)}
+.lvl{background:var(--acc);color:#fff;border-radius:3px;padding:0 5px;font-size:11px}
 </style>
 </head>
 <body>
@@ -68,7 +69,19 @@ a{color:var(--acc)}
       <input id="seed" type="number" min="0" value="0">
       <label for="budget">Budget</label>
       <select id="budget"><option>small</option><option selected>medium</option><option>large</option></select>
+      <div id="validation" class="exp"></div>
       <button id="run">Lock protocol &amp; run</button>
+    </section>
+    <section style="margin-top:12px">
+      <h2>Import CSV (observational, claim ceiling L1)</h2>
+      <input type="file" id="csvfile" accept=".csv,text/csv" aria-label="CSV file">
+      <div class="exp">Columns must match the selected regime's covariates and outcome. Empty cells are treated as missing, never as zero.</div>
+      <button class="secondary" id="importbtn">Import &amp; analyse</button>
+      <div id="importres" class="exp"></div>
+    </section>
+    <section style="margin-top:12px">
+      <h2>Benchmarks</h2>
+      <ul class="runs" id="benches"></ul>
     </section>
     <section style="margin-top:12px">
       <h2>Recorded runs</h2>
@@ -118,7 +131,8 @@ async function init(){
   $('family').innerHTML = Object.keys(META.families).map(f=>`<option>${f}</option>`).join('');
   $('policy').innerHTML = Object.entries(META.policies).map(([k,v])=>`<option value="${k}" ${k==='P8'?'selected':''}>${k} · ${esc(v)}</option>`).join('');
   $('family').onchange = fillRegimes; $('regime').onchange = showExpected;
-  fillRegimes(); refreshRuns();
+  fillRegimes(); refreshRuns(); refreshBenches();
+  $('importbtn').onclick = importCsv;
   $('run').onclick = startRun;
 }
 function fillRegimes(){
@@ -129,6 +143,34 @@ function fillRegimes(){
 function showExpected(){
   const r = META.families[$('family').value][$('regime').value];
   $('expected').innerHTML = r ? `Pre-registered expectation: <i>${esc(r.expected)}</i>` : '';
+  validate();
+}
+$('budget') && ($('budget').onchange = () => validate());
+async function validate(){
+  $('validation').textContent = 'validating protocol…';
+  try{
+    const v = await api('/api/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({family:$('family').value,regime:$('regime').value,budget:$('budget').value})});
+    const warn = v.warnings.filter(w=>w.severity==='warning');
+    $('validation').innerHTML = (v.ok?'<span class="ok">Protocol valid</span>':'<span class="bad">Invalid: '+esc(v.errors.join('; '))+'</span>') +
+      ` · ${v.n_candidates} actions · protocol <code>${esc(v.protocol_hash.slice(0,10))}…</code>` +
+      (warn.length ? '<br><span style="color:var(--warn)">Identifiability: '+warn.map(w=>esc(w.message)).join('<br>')+'</span>' : '<br>No identifiability warnings.');
+  }catch(e){$('validation').innerHTML = '<span class="bad">'+esc(e.message)+'</span>'}
+}
+async function refreshBenches(){
+  const bs = await api('/api/benchmarks');
+  $('benches').innerHTML = bs.map(b=>`<li><a href="/api/benchmarks/${encodeURIComponent(b.name)}/map" target="_blank">${esc(b.name)}</a> · ${b.meta.seeds} seeds · gate <b class="${b.gate.go?'ok':'bad'}">${b.gate.go?'GO':'NO-GO'}</b></li>`).join('') || '<li class="empty">none yet: run <code>probe bench</code></li>';
+}
+async function importCsv(){
+  const f = $('csvfile').files[0];
+  if(!f){ $('importres').textContent = 'choose a CSV file first'; return; }
+  const text = await f.text();
+  $('importres').textContent = 'importing…';
+  try{
+    const r = await api('/api/imports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({family:$('family').value,regime:$('regime').value,csv:text,name:f.name.replace(/[^A-Za-z0-9_.-]/g,'_').slice(0,60)||'import'})});
+    const post = Object.entries(r.posterior).map(([h,w])=>`${esc(h)} ${fmt(w)}`).join(' · ');
+    $('importres').innerHTML = `<b>${r.import.rows_accepted}</b> rows accepted, ${r.import.rows_rejected} rejected, ${r.import.missing_outcome} missing outcomes, ${r.import.formula_cells_flagged} formula-like cells flagged.<br>Posterior (model-conditional): ${post}<br><span class="lvl">${esc(r.claim_ceiling)}</span> ${esc(r.note)}<br>raw sha256 <code>${esc(r.import.raw_sha256.slice(0,16))}…</code>`;
+    refreshRuns();
+  }catch(e){$('importres').innerHTML = '<span class="bad">'+esc(e.message)+'</span>'}
 }
 async function refreshRuns(){
   const rs = await api('/api/runs');
