@@ -1,0 +1,1787 @@
+{
+  "meta": {
+    "version": "v0",
+    "matrix_hash": "d8ced80d500cea624b931f283e35a0218c7aff68719b70dd343f47f5141443fb",
+    "seeds": 20,
+    "budget": "medium",
+    "policies": [
+      "P1",
+      "P2",
+      "P3",
+      "P4",
+      "P5",
+      "P6",
+      "P7",
+      "P8",
+      "P9",
+      "P10"
+    ],
+    "primary": "P8",
+    "runtime_s": 269.0982578000039,
+    "n_runs": 3000
+  },
+  "gate": {
+    "positive_control": "microclimate/R10",
+    "positive_control_separates": false,
+    "realistic_win_cells": [],
+    "go": false,
+    "note": "GO requires the positive control to separate and >=1 other win cell at equal or better severity (handover \u00a712 Part J, M4)."
+  },
+  "cells": {
+    "microclimate/R1": {
+      "expected": "adaptive wins",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.65,
+          "decided": 0.0,
+          "cost": 237.1,
+          "brier": 0.5980108123157383,
+          "runtime_s": 1.2347239899998386
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 238.25,
+          "brier": 0.6765654962820984,
+          "runtime_s": 0.5327404950006894
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.35,
+          "decided": 0.0,
+          "cost": 224.725,
+          "brier": 0.7721475747591515,
+          "runtime_s": 0.46693640500088807
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 236.0,
+          "brier": 0.6628844660299126,
+          "runtime_s": 0.4147506899986183
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.3,
+          "decided": 0.0,
+          "cost": 238.125,
+          "brier": 0.8941049853050206,
+          "runtime_s": 0.4118248799997673
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 234.2,
+          "brier": 0.7747955434229761,
+          "runtime_s": 0.40626876000023915
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 234.7,
+          "brier": 0.6938384692613938,
+          "runtime_s": 0.841612869999517
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 236.75,
+          "brier": 0.5348143389697924,
+          "runtime_s": 0.7766122800006997
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 231.225,
+          "brier": 0.8640949298394324,
+          "runtime_s": 0.7246477349999623
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 236.45,
+          "brier": 0.4787761261538293,
+          "runtime_s": 1.1929293299996062
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P3",
+        "mean_diff": 24.05,
+        "ci95": [
+          -0.25,
+          50.80624999999996
+        ],
+        "relative": 0.05350984536655913,
+        "severity_diff": -0.15,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R2": {
+      "expected": "tie with stratified",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 185.625,
+          "brier": 0.3572729277387081,
+          "runtime_s": 0.5356844149995595
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 191.15,
+          "brier": 0.5954841338158243,
+          "runtime_s": 0.5844948699996166
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 189.275,
+          "brier": 0.4470433882230986,
+          "runtime_s": 0.5574374300013005
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 194.2,
+          "brier": 0.4618552764731222,
+          "runtime_s": 0.506758495000031
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.65,
+          "decided": 0.0,
+          "cost": 197.375,
+          "brier": 0.45654935099323357,
+          "runtime_s": 0.4792257850000169
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.65,
+          "decided": 0.0,
+          "cost": 189.675,
+          "brier": 0.4603705302664234,
+          "runtime_s": 0.4873855199992249
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.75,
+          "decided": 0.0,
+          "cost": 196.9,
+          "brier": 0.4071484431393014,
+          "runtime_s": 0.7913629350001429
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 191.55,
+          "brier": 0.37734605143263783,
+          "runtime_s": 0.7229955900002096
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.85,
+          "decided": 0.0,
+          "cost": 194.925,
+          "brier": 0.2598928210324651,
+          "runtime_s": 0.9106726949990843
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.2,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 179.2,
+          "brier": 0.48350398373421893,
+          "runtime_s": 1.0060971049992076
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P1",
+        "mean_diff": 11.85,
+        "ci95": [
+          -19.6075,
+          46.25374999999998
+        ],
+        "relative": 0.03191919191919192,
+        "severity_diff": -0.09999999999999999,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R3": {
+      "expected": "unguarded adaptive loses on safety; guarded ~ baselines",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.3,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 213.9,
+          "brier": null,
+          "runtime_s": 0.4724809949995688
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.75,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 188.775,
+          "brier": null,
+          "runtime_s": 0.4541125250008918
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.35,
+          "confidently_wrong": 0.2,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 218.95,
+          "brier": null,
+          "runtime_s": 0.4797263650008972
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.1,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 215.925,
+          "brier": null,
+          "runtime_s": 0.4401575050000247
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.25,
+          "confidently_wrong": 0.25,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 226.625,
+          "brier": null,
+          "runtime_s": 0.43535865999983797
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.5,
+          "confidently_wrong": 0.15,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 204.225,
+          "brier": null,
+          "runtime_s": 0.43413488999976835
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 139.375,
+          "brier": null,
+          "runtime_s": 0.4779402650005068
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 154.425,
+          "brier": null,
+          "runtime_s": 0.49324450999883995
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 166.675,
+          "brier": null,
+          "runtime_s": 0.6163365949993022
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.8,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 155.35,
+          "brier": null,
+          "runtime_s": 0.6972214999997959
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -58.0,
+        "ci95": [
+          -125.600625,
+          14.859374999999948
+        ],
+        "relative": -0.2339417162448321,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R4": {
+      "expected": "adaptive wins if shield actions exist",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.8,
+          "decided": 0.0,
+          "cost": 238.2,
+          "brier": 0.2318991896248696,
+          "runtime_s": 0.5804595350011368
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.9,
+          "decided": 0.0,
+          "cost": 237.45,
+          "brier": 0.24392492578506864,
+          "runtime_s": 0.571149135000087
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.85,
+          "decided": 0.0,
+          "cost": 237.35,
+          "brier": 0.23056685368320093,
+          "runtime_s": 0.5689180899997155
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.95,
+          "decided": 0.0,
+          "cost": 237.75,
+          "brier": 0.1588524552709824,
+          "runtime_s": 0.5014958749987273
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 237.775,
+          "brier": 0.31985726288111993,
+          "runtime_s": 0.4998354149985971
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.8,
+          "decided": 0.0,
+          "cost": 237.05,
+          "brier": 0.21999439702418533,
+          "runtime_s": 0.5496198900007585
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.95,
+          "decided": 0.0,
+          "cost": 237.675,
+          "brier": 0.08870831113527186,
+          "runtime_s": 1.0464134100006048
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.9,
+          "decided": 0.0,
+          "cost": 236.925,
+          "brier": 0.11089720983985771,
+          "runtime_s": 0.895865289998983
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.75,
+          "decided": 0.0,
+          "cost": 236.175,
+          "brier": 0.2793434295887548,
+          "runtime_s": 0.9097882200003369
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.9,
+          "decided": 0.0,
+          "cost": 234.875,
+          "brier": 0.1132931508863126,
+          "runtime_s": 1.4056208050009444
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 1.5,
+        "ci95": [
+          -0.95,
+          3.95
+        ],
+        "relative": 0.0031756113051762463,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R5": {
+      "expected": "all tie; inconclusive is correct",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 233.775,
+          "brier": null,
+          "runtime_s": 0.6175431250001566
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 235.575,
+          "brier": null,
+          "runtime_s": 0.6677650050005468
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 237.875,
+          "brier": null,
+          "runtime_s": 0.5908135150002636
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 238.3,
+          "brier": null,
+          "runtime_s": 0.5208630599991011
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 238.575,
+          "brier": null,
+          "runtime_s": 0.5093952450002689
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 236.95,
+          "brier": null,
+          "runtime_s": 0.5169963549993554
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 234.825,
+          "brier": null,
+          "runtime_s": 1.1128793950007094
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 233.1,
+          "brier": null,
+          "runtime_s": 0.9494541249991016
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 232.475,
+          "brier": null,
+          "runtime_s": 0.8789950400001544
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 237.1,
+          "brier": null,
+          "runtime_s": 1.4044163299990031
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 1.25,
+        "ci95": [
+          -22.50125,
+          27.652499999999986
+        ],
+        "relative": 0.0026884611248521348,
+        "severity_diff": 0.05,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R6": {
+      "expected": "static maximin >= adaptive",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 41.3,
+          "brier": 0.7246776788306795,
+          "runtime_s": 0.07587101999997685
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 40.875,
+          "brier": 0.6845087307410884,
+          "runtime_s": 0.08425563999953738
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 41.725,
+          "brier": 0.7310920855585551,
+          "runtime_s": 0.08453311000048416
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.3,
+          "decided": 0.0,
+          "cost": 41.625,
+          "brier": 0.7291818592535788,
+          "runtime_s": 0.07309589499927824
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.25,
+          "decided": 0.0,
+          "cost": 41.925,
+          "brier": 0.7744254384677554,
+          "runtime_s": 0.07562970999933896
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 41.5,
+          "brier": 0.7152254260846864,
+          "runtime_s": 0.08179967500072963
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 40.9,
+          "brier": 0.6962379451613772,
+          "runtime_s": 0.0849785950005753
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 40.775,
+          "brier": 0.6927648600244021,
+          "runtime_s": 0.08740452000020013
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.35,
+          "decided": 0.0,
+          "cost": 41.35,
+          "brier": 0.6688999018619327,
+          "runtime_s": 0.08302264999801992
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 40.925,
+          "brier": 0.6139373154356751,
+          "runtime_s": 0.09156022499919345
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -0.2,
+        "ci95": [
+          -2.75,
+          2.5
+        ],
+        "relative": -0.002446483180428135,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R7": {
+      "expected": "stratified >= adaptive",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 237.75,
+          "brier": 0.6372696080616865,
+          "runtime_s": 0.48858363999970605
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.35,
+          "decided": 0.0,
+          "cost": 230.95,
+          "brier": 0.889643639096054,
+          "runtime_s": 0.5046047250001721
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 233.225,
+          "brier": 0.8131152118682856,
+          "runtime_s": 0.4955835000007937
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 233.5,
+          "brier": 0.5680040882983122,
+          "runtime_s": 0.4165069400009088
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 238.15,
+          "brier": 0.7165759912932164,
+          "runtime_s": 0.42113143999922614
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.15,
+          "top1": 0.45,
+          "decided": 0.0,
+          "cost": 227.9,
+          "brier": 0.7787404009772152,
+          "runtime_s": 0.43274427999967885
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.2,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 226.7,
+          "brier": 0.6069853420871173,
+          "runtime_s": 0.8086454950014741
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.2,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 220.2,
+          "brier": 0.5801767883804838,
+          "runtime_s": 0.6771076300003187
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.1,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 231.475,
+          "brier": 0.6441788185916173,
+          "runtime_s": 0.7270029899998918
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.2,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 226.925,
+          "brier": 0.7549962176545301,
+          "runtime_s": 1.1043065399997432
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P2",
+        "mean_diff": -21.5,
+        "ci95": [
+          -46.85125,
+          -1.3475000000000137
+        ],
+        "relative": -0.04654687161723317,
+        "severity_diff": 0.05000000000000002,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R8": {
+      "expected": "adaptive may lose",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.3,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 221.275,
+          "brier": 0.8588788965424194,
+          "runtime_s": 0.44483887500136915
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.4,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 214.7,
+          "brier": 0.7345695597054547,
+          "runtime_s": 0.45976602000009736
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.4,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 211.5,
+          "brier": 0.9446578144434314,
+          "runtime_s": 0.4456541949995881
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.25,
+          "top1": 0.55,
+          "decided": 0.0,
+          "cost": 226.875,
+          "brier": 0.7105557431604757,
+          "runtime_s": 0.4082033949995093
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.45,
+          "top1": 0.25,
+          "decided": 0.0,
+          "cost": 217.175,
+          "brier": 1.171985758697814,
+          "runtime_s": 0.39616984499916724
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.35,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 220.875,
+          "brier": 0.9414752709205475,
+          "runtime_s": 0.40834424999957264
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.25,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 217.0,
+          "brier": 0.8703483496172455,
+          "runtime_s": 0.7065076699993369
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.3,
+          "top1": 0.5,
+          "decided": 0.0,
+          "cost": 218.575,
+          "brier": 0.8461885057227478,
+          "runtime_s": 0.6601166900003591
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.55,
+          "top1": 0.3,
+          "decided": 0.0,
+          "cost": 186.85,
+          "brier": 1.130071296577246,
+          "runtime_s": 0.6132525299988629
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.6,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 189.225,
+          "brier": 0.9822523401669996,
+          "runtime_s": 0.8967160949989192
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 63.45,
+        "ci95": [
+          13.8,
+          109.55249999999998
+        ],
+        "relative": 0.1697886004816698,
+        "severity_diff": -0.25000000000000006,
+        "outcome": "lose"
+      }
+    },
+    "microclimate/R9": {
+      "expected": "negative interference possible",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.25,
+          "top1": 0.4,
+          "decided": 0.0,
+          "cost": 222.6,
+          "brier": 0.8896364760969153,
+          "runtime_s": 0.47578526500074075
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.4,
+          "top1": 0.2,
+          "decided": 0.0,
+          "cost": 207.175,
+          "brier": 1.1446319600096857,
+          "runtime_s": 0.4494250049996481
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.4,
+          "top1": 0.25,
+          "decided": 0.0,
+          "cost": 216.325,
+          "brier": 0.8713486146356612,
+          "runtime_s": 0.45132053999877825
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.35,
+          "top1": 0.25,
+          "decided": 0.0,
+          "cost": 219.475,
+          "brier": 1.0817158027972038,
+          "runtime_s": 0.40676624500083564
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.25,
+          "top1": 0.3,
+          "decided": 0.0,
+          "cost": 228.25,
+          "brier": 0.8993539094195813,
+          "runtime_s": 0.40252425500002575
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.35,
+          "top1": 0.25,
+          "decided": 0.0,
+          "cost": 215.15,
+          "brier": 0.9778570075991487,
+          "runtime_s": 0.41549949000000197
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.6,
+          "top1": 0.15,
+          "decided": 0.0,
+          "cost": 179.425,
+          "brier": 1.2820456616638327,
+          "runtime_s": 0.6251509899997473
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.5,
+          "top1": 0.3,
+          "decided": 0.0,
+          "cost": 180.0,
+          "brier": 1.0627239229539605,
+          "runtime_s": 0.5460494400012976
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.7,
+          "top1": 0.15,
+          "decided": 0.0,
+          "cost": 178.35,
+          "brier": 1.0983634063582324,
+          "runtime_s": 0.6031077199986612
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.65,
+          "top1": 0.2,
+          "decided": 0.0,
+          "cost": 169.275,
+          "brier": 1.1502230493930155,
+          "runtime_s": 0.7989973350006039
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 3.3,
+        "ci95": [
+          -68.9575,
+          68.00125
+        ],
+        "relative": 0.009251471825063078,
+        "severity_diff": -0.19999999999999996,
+        "outcome": "tie"
+      }
+    },
+    "microclimate/R10": {
+      "expected": "adaptive wins (positive control)",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.7,
+          "decided": 0.0,
+          "cost": 117.975,
+          "brier": 0.49490942704465246,
+          "runtime_s": 0.12619511500088265
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 116.825,
+          "brier": 0.6462395344805151,
+          "runtime_s": 0.13590634500105808
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.05,
+          "top1": 0.6,
+          "decided": 0.0,
+          "cost": 118.15,
+          "brier": 0.6111900131247224,
+          "runtime_s": 0.12733203999996476
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.0,
+          "cost": 116.55,
+          "brier": 0.06345009251120062,
+          "runtime_s": 0.12061033000063617
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.85,
+          "decided": 0.0,
+          "cost": 117.05,
+          "brier": 0.25611683855104694,
+          "runtime_s": 0.1222190699998464
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.95,
+          "decided": 0.0,
+          "cost": 117.5,
+          "brier": 0.0766828815971384,
+          "runtime_s": 0.12560825000036857
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.0,
+          "cost": 117.55,
+          "brier": 0.003752316711166584,
+          "runtime_s": 0.16936036999941279
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.0,
+          "cost": 116.675,
+          "brier": 0.014538574015239215,
+          "runtime_s": 0.15661970999972255
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.0,
+          "cost": 116.75,
+          "brier": 0.02316613035363962,
+          "runtime_s": 0.14714470999970217
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.0,
+          "cost": 117.1,
+          "brier": 0.001637933405379462,
+          "runtime_s": 0.19017199500085552
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": 0.25,
+        "ci95": [
+          -1.95,
+          2.6
+        ],
+        "relative": 0.0010725010725010724,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R1": {
+      "expected": "adaptive wins",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.4,
+          "confidently_wrong": 0.25,
+          "top1": 0.9,
+          "decided": 0.4,
+          "cost": 124.25,
+          "brier": 0.11193853822393555,
+          "runtime_s": 0.6741264949996548
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.25,
+          "confidently_wrong": 0.1,
+          "top1": 1.0,
+          "decided": 0.25,
+          "cost": 141.15,
+          "brier": 0.12017870256541248,
+          "runtime_s": 0.4960602699997253
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.4,
+          "confidently_wrong": 0.1,
+          "top1": 0.9,
+          "decided": 0.4,
+          "cost": 134.85,
+          "brier": 0.1384097318414104,
+          "runtime_s": 0.6012445250009477
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.75,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.75,
+          "cost": 94.0,
+          "brier": 0.07265929740675915,
+          "runtime_s": 0.542661269999735
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.5,
+          "confidently_wrong": 0.2,
+          "top1": 0.9,
+          "decided": 0.5,
+          "cost": 110.0,
+          "brier": 0.12162828090837681,
+          "runtime_s": 1.0987597899984394
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.85,
+          "cost": 74.25,
+          "brier": 0.1019098508063699,
+          "runtime_s": 0.49814810000025317
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.9,
+          "cost": 53.15,
+          "brier": 0.06800166064444593,
+          "runtime_s": 0.5412174149998463
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.9,
+          "cost": 60.95,
+          "brier": 0.0680014728969541,
+          "runtime_s": 0.5220975950003777
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.15,
+          "top1": 0.95,
+          "decided": 0.85,
+          "cost": 54.55,
+          "brier": 0.07200635581085685,
+          "runtime_s": 0.8573206000004575
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.1,
+          "top1": 1.0,
+          "decided": 0.85,
+          "cost": 59.65,
+          "brier": 0.007947508775592013,
+          "runtime_s": 0.5802933650003979
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 4.5,
+        "ci95": [
+          -4.20125,
+          14.15
+        ],
+        "relative": 0.07450331125827815,
+        "severity_diff": -0.04999999999999999,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R2": {
+      "expected": "tie",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.45,
+          "cost": 7.05,
+          "brier": 0.009067669611605092,
+          "runtime_s": 0.35902070999982244
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.0,
+          "top1": 0.95,
+          "decided": 0.45,
+          "cost": 6.9,
+          "brier": 0.07591690367597026,
+          "runtime_s": 0.3726942049997888
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.55,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.55,
+          "cost": 7.15,
+          "brier": 0.0003226035977497569,
+          "runtime_s": 0.380137774999821
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.85,
+          "cost": 5.5,
+          "brier": 0.001058883475501674,
+          "runtime_s": 0.33046090999996525
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.8,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.8,
+          "cost": 6.7,
+          "brier": 0.011117218194190395,
+          "runtime_s": 0.7565750550009398
+        },
+        "P6": {
+          "n": 20,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 5.5,
+          "brier": 6.902176245159293e-07,
+          "runtime_s": 0.31487731499946675
+        },
+        "P7": {
+          "n": 20,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 5.5,
+          "brier": 6.902176245159293e-07,
+          "runtime_s": 0.3130759100000432
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.95,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.95,
+          "cost": 5.85,
+          "brier": 8.04888503282961e-07,
+          "runtime_s": 0.3272964899992076
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 0.7,
+          "cost": 6.85,
+          "brier": 0.00027468464307446626,
+          "runtime_s": 0.41044930500065674
+        },
+        "P10": {
+          "n": 20,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "top1": 1.0,
+          "decided": 1.0,
+          "cost": 5.5,
+          "brier": 3.7498440144827664e-07,
+          "runtime_s": 0.317616330000601
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P4",
+        "mean_diff": -0.45,
+        "ci95": [
+          -1.8,
+          0.7
+        ],
+        "relative": -0.06716417910447761,
+        "severity_diff": 0.0,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R3": {
+      "expected": "guarded ~ baselines on safety",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.5,
+          "confidently_wrong": 0.35,
+          "top1": 0.0,
+          "decided": 0.15,
+          "cost": 121.55,
+          "brier": null,
+          "runtime_s": 0.6532318300007318
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.4,
+          "confidently_wrong": 0.15,
+          "top1": 0.0,
+          "decided": 0.05,
+          "cost": 138.6,
+          "brier": null,
+          "runtime_s": 0.48187173999904187
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.55,
+          "confidently_wrong": 0.2,
+          "top1": 0.0,
+          "decided": 0.05,
+          "cost": 122.45,
+          "brier": null,
+          "runtime_s": 0.5726837950005574
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.6,
+          "confidently_wrong": 0.35,
+          "top1": 0.0,
+          "decided": 0.15,
+          "cost": 106.65,
+          "brier": null,
+          "runtime_s": 0.4792359250004665
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.5,
+          "top1": 0.0,
+          "decided": 0.25,
+          "cost": 118.55,
+          "brier": null,
+          "runtime_s": 1.0011389650004276
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.05,
+          "decided": 0.25,
+          "cost": 89.65,
+          "brier": 7.878402232063347e-06,
+          "runtime_s": 0.49947541000037743
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.75,
+          "confidently_wrong": 0.3,
+          "top1": 0.15,
+          "decided": 0.35,
+          "cost": 49.95,
+          "brier": 4.146666413235346e-07,
+          "runtime_s": 0.5262508699994214
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.65,
+          "confidently_wrong": 0.35,
+          "top1": 0.15,
+          "decided": 0.45,
+          "cost": 58.7,
+          "brier": 5.815296781783413e-07,
+          "runtime_s": 0.5356324649987073
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.8,
+          "confidently_wrong": 0.2,
+          "top1": 0.15,
+          "decided": 0.35,
+          "cost": 47.2,
+          "brier": 1.5912221067854522e-06,
+          "runtime_s": 0.6572053250001773
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.1,
+          "decided": 0.25,
+          "cost": 59.35,
+          "brier": 1.2957909530369087e-06,
+          "runtime_s": 0.5783258650000789
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 23.2,
+        "ci95": [
+          2.9462500000000005,
+          44.80249999999998
+        ],
+        "relative": 0.37970540098199673,
+        "severity_diff": 0.14999999999999997,
+        "outcome": "lose"
+      }
+    },
+    "systemlab/R10": {
+      "expected": "adaptive wins (positive control)",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.4,
+          "confidently_wrong": 0.0,
+          "top1": 0.75,
+          "decided": 0.4,
+          "cost": 75.75,
+          "brier": 0.1399862374947609,
+          "runtime_s": 0.410591215000386
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.05,
+          "confidently_wrong": 0.0,
+          "top1": 0.55,
+          "decided": 0.05,
+          "cost": 80.0,
+          "brier": 0.4330786850597271,
+          "runtime_s": 0.2599257200014108
+        },
+        "P3": {
+          "n": 20,
+          "correct": 0.35,
+          "confidently_wrong": 0.1,
+          "top1": 0.9,
+          "decided": 0.35,
+          "cost": 77.7,
+          "brier": 0.12566048295544588,
+          "runtime_s": 0.36899477500046485
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.45,
+          "confidently_wrong": 0.15,
+          "top1": 0.8,
+          "decided": 0.45,
+          "cost": 64.05,
+          "brier": 0.20712964953756935,
+          "runtime_s": 0.34959777500080236
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.4,
+          "confidently_wrong": 0.0,
+          "top1": 0.8,
+          "decided": 0.4,
+          "cost": 73.4,
+          "brier": 0.16432327273791916,
+          "runtime_s": 0.6300188149998576
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.15,
+          "top1": 0.95,
+          "decided": 0.85,
+          "cost": 44.3,
+          "brier": 0.0750005960906902,
+          "runtime_s": 0.30214097499920173
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.9,
+          "cost": 39.25,
+          "brier": 0.050000708242602075,
+          "runtime_s": 0.4369901349997235
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.85,
+          "confidently_wrong": 0.1,
+          "top1": 0.95,
+          "decided": 0.85,
+          "cost": 47.9,
+          "brier": 0.051089601509878436,
+          "runtime_s": 0.44460730999926457
+        },
+        "P9": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.8,
+          "decided": 0.7,
+          "cost": 38.8,
+          "brier": 0.13467714339376197,
+          "runtime_s": 0.6293933200013271
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.9,
+          "decided": 0.9,
+          "cost": 41.0,
+          "brier": 0.050000699324742534,
+          "runtime_s": 0.4332924100006494
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P9",
+        "mean_diff": 6.95,
+        "ci95": [
+          -5.45,
+          21.25
+        ],
+        "relative": 0.13969849246231156,
+        "severity_diff": -0.19999999999999998,
+        "outcome": "tie"
+      }
+    },
+    "systemlab/R11": {
+      "expected": "automata learning wins (not in v0 policy set)",
+      "policies": {
+        "P1": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.0,
+          "decided": 0.1,
+          "cost": 51.6,
+          "brier": null,
+          "runtime_s": 0.21428833500031033
+        },
+        "P2": {
+          "n": 20,
+          "correct": 0.95,
+          "confidently_wrong": 0.05,
+          "top1": 0.0,
+          "decided": 0.05,
+          "cost": 47.1,
+          "brier": null,
+          "runtime_s": 0.1987552600006893
+        },
+        "P3": {
+          "n": 20,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 48.0,
+          "brier": null,
+          "runtime_s": 0.20251775500109942
+        },
+        "P4": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.0,
+          "decided": 0.3,
+          "cost": 60.6,
+          "brier": null,
+          "runtime_s": 0.24155760999892664
+        },
+        "P5": {
+          "n": 20,
+          "correct": 0.75,
+          "confidently_wrong": 0.25,
+          "top1": 0.0,
+          "decided": 0.25,
+          "cost": 85.2,
+          "brier": null,
+          "runtime_s": 0.5009161750000203
+        },
+        "P6": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.0,
+          "decided": 0.3,
+          "cost": 60.6,
+          "brier": null,
+          "runtime_s": 0.24318931000088923
+        },
+        "P7": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.3,
+          "top1": 0.0,
+          "decided": 0.3,
+          "cost": 60.6,
+          "brier": null,
+          "runtime_s": 0.24659658499949727
+        },
+        "P8": {
+          "n": 20,
+          "correct": 0.9,
+          "confidently_wrong": 0.1,
+          "top1": 0.0,
+          "decided": 0.1,
+          "cost": 53.7,
+          "brier": null,
+          "runtime_s": 0.21754404499988594
+        },
+        "P9": {
+          "n": 20,
+          "correct": 1.0,
+          "confidently_wrong": 0.0,
+          "top1": 0.0,
+          "decided": 0.0,
+          "cost": 48.0,
+          "brier": null,
+          "runtime_s": 0.2169227550006326
+        },
+        "P10": {
+          "n": 20,
+          "correct": 0.7,
+          "confidently_wrong": 0.2,
+          "top1": 0.0,
+          "decided": 0.2,
+          "cost": 351.6,
+          "brier": null,
+          "runtime_s": 1.2245827700004157
+        }
+      },
+      "contrast": {
+        "primary": "P8",
+        "best_baseline": "P3",
+        "mean_diff": 14.7,
+        "ci95": [
+          0.3,
+          34.2
+        ],
+        "relative": 0.30624999999999997,
+        "severity_diff": 0.1,
+        "outcome": "lose"
+      }
+    }
+  }
+}
