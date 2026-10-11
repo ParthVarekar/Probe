@@ -1,0 +1,1 @@
+{"version":"0.0.1","configurations":[{"name":"probe","runtimeExecutable":"uv","runtimeArgs":["run","probe","serve","--workspace","probe_workspace","--port","8765"],"port":8765}]}

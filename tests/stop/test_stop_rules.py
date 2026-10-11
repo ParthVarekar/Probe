@@ -69,7 +69,7 @@ def test_decision_reached_with_posterior_and_eprocess():
     assert det["leader_weight"] == pytest.approx(0.97)
     assert det["log_e_threshold"] == pytest.approx(math.log(20.0))
     assert det["eprocess_passed"] is True
-    assert set(det["log_e_vs_rivals"]) == {"H2", "H3", "H0"}
+    assert set(det["log_e_vs_rivals"]) == {"H2", "H3"}  # the residual is exempt
     canonical_json(det)
 
 
@@ -105,8 +105,9 @@ def test_nesting_rivals_are_exempt_from_the_eprocess():
     nests[0, 1] = nests[0, 2] = True
     d = StoppingRule(proto()).evaluate(state(weights=W_H1, log_e=le, nests=nests))
     assert d.stop and d.reason == "decision_reached"
-    assert d.details["eprocess_exempt_nesting"] == ["H2", "H3"]
-    assert set(d.details["log_e_vs_rivals"]) == {"H0"}
+    # the residual is always exempt (its MLE is unbounded; the inadequacy rule covers it)
+    assert d.details["eprocess_exempt_nesting"] == ["H2", "H3", RES]
+    assert set(d.details["log_e_vs_rivals"]) == set()
     # without the nesting information the decision is withheld
     assert not StoppingRule(proto()).evaluate(state(weights=W_H1, log_e=le)).stop
     # nesting in the other direction (H2 ⊂ H1) does not exempt anything
@@ -307,3 +308,11 @@ def test_information_rate():
         information_rate([math.nan], [1.0])
     with pytest.raises(ValueError):
         information_rate([0.1, 0.2], [1.0])
+
+
+def test_residual_is_exempt_from_the_eprocess():
+    le = log_e()
+    i_res = list(state(weights=W_H1).hypothesis_ids).index(RES)
+    le[0, i_res] = -math.inf  # interpolating residual: never rejectable
+    d = StoppingRule(proto()).evaluate(state(weights=W_H1, log_e=le))
+    assert d.stop and d.reason == "decision_reached"

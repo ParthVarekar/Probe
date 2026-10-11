@@ -181,10 +181,16 @@ class StoppingRule:
         ``None`` when the e-processes are required but not tracked."""
         ids = state.hypothesis_ids
         nests = None if state.nests is None else np.asarray(state.nests, dtype=bool)
+        # Exempt: rivals whose model class contains the leader's (nesting), and the
+        # residual. The residual is deliberately flexible (often more parameters than
+        # observations), so its maximum likelihood is unbounded and a universal-inference
+        # e-process can never reject it; its role is covered by the posterior threshold
+        # and the inadequacy rule (H.6 rule 4), which stop with "none fits" when it leads.
         exempt = [
             ids[j]
             for j in range(len(ids))
-            if j != leader and nests is not None and bool(nests[leader, j])
+            if j != leader
+            and (ids[j] == state.residual_id or (nests is not None and bool(nests[leader, j])))
         ]
         required = [j for j in range(len(ids)) if j != leader and ids[j] not in exempt]
         if state.log_e is None:

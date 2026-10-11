@@ -4,7 +4,7 @@
 # predictions; the report scores them as win/tie/lose, including the losses.
 version: v0
 seeds: 20            # per cell; the plan's full run uses 100 (--seeds 100)
-budget: medium
+budget: large       # changed from medium after the exploratory run 2026-10-11: medium allowed ~7 obs and no policy (incl. oracle) could decide
 primary_policy: P8
 baselines: [P1, P2, P3, P4, P5, P9]
 policies: [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10]
