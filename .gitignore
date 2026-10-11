@@ -11,3 +11,7 @@ build/
 results/
 node_modules/
 web/dist/
+
+probe_workspace/
+*.probe.zip
+results_bench_v0.log

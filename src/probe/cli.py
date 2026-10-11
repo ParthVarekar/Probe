@@ -32,7 +32,50 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--seeds", type=int, default=None, help="override seeds per cell")
     bench.add_argument("--workers", type=int, default=1)
     bench.add_argument("--out", type=Path, default=Path("results/bench"))
+
+    rec = sub.add_parser("record", help="run and record an experiment in a ledger workspace")
+    rec.add_argument("--workspace", type=Path, default=Path("probe_workspace"))
+    rec.add_argument("--family", default="microclimate", choices=["microclimate", "systemlab"])
+    rec.add_argument("--regime", default="R1")
+    rec.add_argument("--seed", type=int, default=0)
+    rec.add_argument("--policy", default="P8")
+    rec.add_argument("--budget", default="medium", choices=["small", "medium", "large"])
+
+    exp = sub.add_parser("export", help="export a recorded experiment as a bundle zip")
+    exp.add_argument("experiment_id")
+    exp.add_argument("--workspace", type=Path, default=Path("probe_workspace"))
+    exp.add_argument("--out", type=Path, default=None)
+
+    ver = sub.add_parser("verify", help="verify a bundle: hash chain, ordering, replay")
+    ver.add_argument("bundle", type=Path)
+    ver.add_argument("--no-replay", action="store_true")
     return parser
+
+
+def _cmd_record(args: argparse.Namespace) -> int:
+    from probe.bundle import record_run
+
+    exp, m = record_run(
+        args.workspace, args.family, args.regime, args.seed, args.policy, args.budget
+    )
+    print(f"recorded {exp}: verdict {m['verdict']} (SIMULATED)")
+    return 0
+
+
+def _cmd_export(args: argparse.Namespace) -> int:
+    from probe.bundle import export_bundle
+
+    out = args.out or Path(f"{args.experiment_id}.probe.zip")
+    print(export_bundle(args.workspace, args.experiment_id, out))
+    return 0
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    from probe.bundle import verify_bundle
+
+    rep = verify_bundle(args.bundle, replay=not args.no_replay)
+    print(json.dumps(rep, indent=2))
+    return 0 if rep["ok"] else 1
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
@@ -74,6 +117,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_run(args)
     if args.command == "bench":
         return _cmd_bench(args)
+    if args.command == "record":
+        return _cmd_record(args)
+    if args.command == "export":
+        return _cmd_export(args)
+    if args.command == "verify":
+        return _cmd_verify(args)
     return 0
 
 
