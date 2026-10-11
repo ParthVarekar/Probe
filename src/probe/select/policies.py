@@ -495,6 +495,30 @@ class GuardedEIGPolicy(PolicyBase):
 # --------------------------------------------------------------------------- P2, P9
 
 
+class AdaptiveAuditEIGPolicy(GuardedEIGPolicy):
+    """P8a (post-hoc variant, not pre-registered): P8 with a *small* base audit
+    fraction ``base_eps`` (default 0.03) that jumps to ``alarm_audit_eps`` while the
+    calibrated misspecification alarm is raised. Motivation: in the 100-seed v0 run
+    the constant ε = 0.15 cost 16 pp of correctness in the positive control. The
+    protocol's ``audit_eps`` is ignored; the exact propensity formula of P8 holds
+    with ε = effective_eps."""
+
+    id = "P8a"
+    name = "guarded EIG/cost, adaptive audit"
+
+    def __init__(self, base_eps: float = 0.03, alarm_audit_eps: float = 1.0) -> None:
+        super().__init__(alarm_audit_eps=alarm_audit_eps)
+        if not 0.0 <= base_eps <= 1.0:
+            raise ValueError("base_eps must lie in [0, 1]")
+        self.base_eps = float(base_eps)
+
+    def config(self) -> dict[str, Any]:
+        return {"base_eps": self.base_eps, "alarm_audit_eps": self.alarm_audit_eps}
+
+    def effective_eps(self, protocol: RunProtocol, alarm: bool) -> float:
+        return max(self.base_eps, self.alarm_audit_eps) if alarm else self.base_eps
+
+
 class _ScheduledPolicy(PolicyBase):
     """Executes a fixed sequence of action ids, cycling, with nearest-feasible
     fallback. One :meth:`decide` per executed step advances the schedule."""

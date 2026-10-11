@@ -13,6 +13,7 @@ from types import MappingProxyType
 from typing import Any
 
 from probe.select.policies import (
+    AdaptiveAuditEIGPolicy,
     EIGPerCostPolicy,
     FixedGridPolicy,
     GuardedEIGPolicy,
@@ -40,11 +41,12 @@ POLICY_CLASSES: Mapping[str, type[PolicyBase]] = MappingProxyType(
         "P8": GuardedEIGPolicy,
         "P9": StaticMaximinPolicy,
         "P10": OraclePolicy,
+        "P8a": AdaptiveAuditEIGPolicy,
     }
 )
 
 POLICY_IDS: tuple[str, ...] = tuple(POLICY_CLASSES)
-"""``("P1", ..., "P10")``."""
+"""``("P1", ..., "P10", "P8a")``; P8a is a post-hoc (not pre-registered) variant."""
 
 POLICY_NAMES: Mapping[str, str] = MappingProxyType(
     {pid: cls.name for pid, cls in POLICY_CLASSES.items()}

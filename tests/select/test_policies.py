@@ -286,7 +286,7 @@ def test_oracle_construction_and_sealing() -> None:
 
 
 def test_registry() -> None:
-    assert POLICY_IDS == tuple(f"P{i}" for i in range(1, 11))
+    assert POLICY_IDS == (*(f"P{i}" for i in range(1, 11)), "P8a")
     assert set(POLICY_NAMES) == set(POLICY_IDS)
     assert POLICY_NAMES["P8"] == "guarded EIG/cost" and POLICY_NAMES["P10"] == "oracle"
     for pid in POLICY_IDS[:9]:
@@ -298,3 +298,12 @@ def test_registry() -> None:
     with pytest.raises(KeyError):
         make_policy("P11")
     assert make_policy("P1") is not make_policy("P1")
+
+
+def test_p8a_adaptive_audit_eps() -> None:
+    from probe.run.protocol import RunProtocol
+
+    pol = make_policy("P8a")
+    proto = RunProtocol(budget=100, warmup=0, audit_eps=0.5)
+    assert pol.effective_eps(proto, alarm=False) == 0.03  # protocol ε ignored
+    assert pol.effective_eps(proto, alarm=True) == 1.0
