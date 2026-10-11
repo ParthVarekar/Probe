@@ -27,6 +27,10 @@ dependencies = [
     "uvicorn>=0.32",
 ]
 
+[project.optional-dependencies]
+# Optional AI assist (handover M10). The product works fully without it.
+ai = ["anthropic>=1.0"]
+
 [project.scripts]
 probe = "probe.cli:main"
 
