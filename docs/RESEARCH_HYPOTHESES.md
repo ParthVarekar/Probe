@@ -21,7 +21,14 @@ are SIMULATED**, and no real-world claim is made.
    wrong verdicts often, and the adaptive ones do so faster. This is the central
    safety problem and the next research priority (better inadequacy diagnostics,
    an audit-based posterior-predictive check, or tempering).
-3. The positive control R10 is not yet strong enough to "force" adaptivity: the
+3. **The positive control separates adaptive EIG from the baselines, but the guard
+   is expensive there.** On microclimate R10 (100 seeds), unguarded EIG/cost (P7) is
+   0.79 correct vs 0.57 for the best baseline (P9 static maximin) and 0.87 for the oracle,
+   while the guarded P8 is 0.63. The audit fraction ε = 0.15 costs 16 pp, above the
+   ≤ 10 pp guard budget in A″. Options: a smaller ε, or ε that scales with alarm
+   evidence instead of a constant. The gate is defined on P8, so it reports NO-GO.
+   Systemlab R10 is a weak positive control (random already reaches 0.89).
+4. (Superseded by 3.) The positive control R10 is not yet strong enough to "force" adaptivity: the
    static maximin design (P9) almost matches P8, while the oracle shows headroom
    (0.87 vs 0.63).
 
