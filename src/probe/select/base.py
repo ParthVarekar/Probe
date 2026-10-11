@@ -5,14 +5,23 @@ engine scores of every feasible candidate (:class:`ScoredCandidates`). A policy
 only chooses among them. This keeps comparisons fair (equal information, equal
 stopping rules) and makes every decision explainable: the full score table,
 the propensity, the tie set and the RNG state go into the decision record.
+
+Scoring lives in :mod:`probe.select.scoring`, the policies P1-P10 in
+:mod:`probe.select.policies` (registry :func:`probe.select.registry.make_policy`).
+
+Extensions made in M3, all backward compatible (defaulted trailing fields and
+methods only): :attr:`ScoredCandidates.u_param_available`,
+:attr:`ScoredCandidates.u_model_upper`, :meth:`ScoredCandidates.objective`,
+:attr:`Decision.details` and :meth:`Decision.as_record`.
 """
 
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Literal, Protocol
+from dataclasses import dataclass, field
+from typing import Any, Literal, Protocol
 
 import numpy as np
 
@@ -52,6 +61,11 @@ class ScoredCandidates:
     """Variance of the model-averaged predictive."""
     predictives: tuple[Predictive, ...]
     """One batch per hypothesis (hypothesis-set order), each over ``candidates``."""
+    u_param_available: bool = True
+    """False when ``u_param`` was not computed (it is then all NaN): see
+    :func:`probe.select.scoring.score_candidates` for when that happens."""
+    u_model_upper: float = math.nan
+    """H(π), the upper bound of U_M at this step (NaN if not recorded)."""
 
     @property
     def n(self) -> int:
@@ -59,6 +73,23 @@ class ScoredCandidates:
 
     def action_ids(self) -> list[str]:
         return [c.action.id for c in self.candidates]
+
+    def strata(self) -> list[str]:
+        return [c.stratum for c in self.candidates]
+
+    def objective(self, lambda_param: float) -> np.ndarray:
+        """U(d) = U_M(d) + λ·Σ_m π_m U_θ|m(d) (handover §12 H.5, combined objective).
+        λ = 0 never touches ``u_param`` (which may be unavailable)."""
+        if lambda_param < 0.0 or not math.isfinite(lambda_param):
+            raise ValueError("lambda_param must be finite and >= 0")
+        if lambda_param == 0.0:
+            return np.array(self.u_model, dtype=np.float64)
+        if not self.u_param_available:
+            raise ValueError(
+                "u_param was not computed for this step; score with need_u_param=True "
+                "(see probe.select.scoring.requires_u_param)"
+            )
+        return np.asarray(self.u_model + lambda_param * self.u_param, dtype=np.float64)
 
 
 @dataclass(frozen=True)
@@ -110,6 +141,30 @@ class Decision:
     rng_state_after: str
     reason: str
     """Human-readable "why this next", generated from the numbers, never free-form."""
+    details: Mapping[str, Any] = field(default_factory=dict)
+    """Policy-specific numbers behind the decision (JSON-able; e.g. the guarded
+    policy's effective audit fraction and both design probabilities)."""
+
+    def as_record(self) -> dict[str, Any]:
+        """JSON-able form for the run record. Non-finite floats (NaN for "no score",
+        ±inf for an infinite predictive variance) become ``None``, because canonical
+        JSON rejects them; everything else is kept exactly."""
+        return {
+            "step": self.step,
+            "policy_id": self.policy_id,
+            "policy_version": self.policy_version,
+            "chosen_index": self.chosen_index,
+            "action_id": self.action_id,
+            "score": _finite_or_none(self.score),
+            "scores": [_finite_or_none(x) for x in np.asarray(self.scores, dtype=np.float64)],
+            "propensity": self.propensity,
+            "tie_set": list(self.tie_set),
+            "mode": self.mode,
+            "rng_state_before": self.rng_state_before,
+            "rng_state_after": self.rng_state_after,
+            "reason": self.reason,
+            "details": _jsonable_details(self.details),
+        }
 
 
 class Policy(Protocol):
@@ -121,6 +176,27 @@ class Policy(Protocol):
         ...
 
     def decide(self, ctx: DecisionContext, rng: np.random.Generator) -> Decision: ...
+
+
+def _finite_or_none(x: float | np.floating) -> float | None:
+    f = float(x)
+    return f if math.isfinite(f) else None
+
+
+def _jsonable_details(obj: Any) -> Any:
+    if isinstance(obj, Mapping):
+        return {str(k): _jsonable_details(v) for k, v in obj.items()}
+    if isinstance(obj, np.ndarray):
+        return [_jsonable_details(v) for v in obj.tolist()]
+    if isinstance(obj, list | tuple):
+        return [_jsonable_details(v) for v in obj]
+    if isinstance(obj, bool | np.bool_):
+        return bool(obj)
+    if isinstance(obj, int | np.integer):
+        return int(obj)
+    if isinstance(obj, float | np.floating):
+        return _finite_or_none(obj)
+    return obj
 
 
 def stable_key(action_id: str) -> str:

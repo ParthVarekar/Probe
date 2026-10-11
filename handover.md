@@ -18,6 +18,31 @@
 
 ---
 
+## 0.0 ▶ IMPLEMENTATION STATUS (2026-10-11; read this first)
+
+The user said "complete the project" (implicit approval of the plan; build all milestones). Work runs on branch `claude/pensive-ptolemy-huq2mx`. Verify with `uv run ruff check . && uv run mypy && uv run pytest -m "not slow" -n 4`.
+
+| Milestone | Status |
+|---|---|
+| M0 Foundations | ✅ uv project, CI (`.github/workflows/ci.yml`), CLI `probe --version` |
+| M1 Inference & EIG | ✅ `src/probe/engine/{ir,nig,grid,eig,factory,queries,predictive}.py`; adversarially reviewed; property and oracle tests |
+| M2 Simulators | ✅ `src/probe/envs/microclimate/` (R1–R10, H0–H4) and `src/probe/envs/systemlab/` (finite-grid mechanisms, R1–R11); sealed truth; CRN; reviewed; `tests/integration/test_envs_engine.py` |
+| M3 Policies & stopping | 🔄 **Partly done, unreviewed.** Done, with 131 tests passing: `src/probe/select/{scoring,policies,designs,oracle,registry}.py`, `src/probe/stop/{eprocess,confseq,rules}.py`, `src/probe/diagnostics/{pit,alarms,identifiability}.py`. **Still to do:** (1) `src/probe/run/loop.py`: `run_experiment` with commit-before-execute order, CRN warm-up, `RunRecord`, decision hash, `on_event`; (2) `src/probe/run/evaluate.py`: unify microclimate `expected_verdict` with systemlab `acceptable_verdicts(payload, final_clock)`, plus confidently-wrong, Brier and cost metrics; (3) `run_world(...)`; (4) `tests/golden/decision_hashes.json`; (5) the `probe run` CLI; (6) an adversarial review of the e-process validity simulation and P8 propensities |
+| M4 Benchmark + gate | ⏳ not started: `src/probe/bench/`, `bench/matrix_v0.yaml`, regime-map HTML, `probe bench` |
+| M5 Ledger/API | ⏳ |
+| M6 Minimal UI | ⏳ |
+| M7 Claims/report/export/verify | ⏳ |
+| M8–M13 | ⏳ (M11 needs network; M12 gated) |
+
+**Notes for the next session:**
+- Workflow subagents must be given `model: 'opus'`, because the default subagent model is misconfigured.
+- Usage limits have repeatedly killed long workflows. Commit after each piece of work.
+- Known open items:
+  - NIG `max_log_likelihood` is O(np²) per call.
+  - `GridModel.parameter_eig` recomputes predict, which is slow on the system lab.
+  - The R11 system-lab truth is always out of set.
+  - The Occam effect makes R1 pick H1 over a true H2/H3 in about 1/3 of seeds.
+
 ## 0.1 ▶ CONTINUE IN A LOCAL SESSION (start here)
 
 The cloud planning session ended on 2026-10-10. **The user will continue in a local Claude Code session.** The plan in §12 was presented for approval but **not approved in the cloud session**: the approval UI was denied twice and the user chose to move to a local environment. **Treat §12 as the current proposal awaiting the user's explicit approval.**
