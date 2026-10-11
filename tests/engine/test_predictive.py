@@ -45,9 +45,15 @@ def test_student_t_gaussian_limit():
     )
     np.testing.assert_allclose(p.entropy(), stats.norm.entropy(scale=[0.5, 3.0]), rtol=1e-14)
     np.testing.assert_array_equal(p.variance(), [0.25, 9.0])
-    # and it is the limit of large finite ν
-    big = _t([1e12, 1e12], [1.0, -2.0], [0.5, 3.0])
-    np.testing.assert_allclose(big.logpdf(y), p.logpdf(y), rtol=1e-10)
+    # and it is the limit of large finite ν. At ν = 1e12 the t density still differs
+    # from the Gaussian by (z⁴/4 − z²/2 − 1/4)/ν + O(ν⁻²) (kernel and normalizer
+    # expansions), 1.6e-8 at z = 16: check that correction itself, not a loose rtol.
+    nu = 1e12
+    big = _t([nu, nu], [1.0, -2.0], [0.5, 3.0])
+    z = (y - np.array([1.0, -2.0])) / np.array([0.5, 3.0])
+    np.testing.assert_allclose(
+        big.logpdf(y) - p.logpdf(y), (z**4 / 4 - z**2 / 2 - 0.25) / nu, rtol=0, atol=1e-13
+    )
 
 
 def test_student_t_variance():

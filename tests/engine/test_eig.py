@@ -593,3 +593,163 @@ def test_per_step_eig_timing_5x200(capsys, n_fit):
     assert t_eig < 0.5
     assert np.all(res.value >= 0) and np.all(res.value <= entropy(w) + 1e-15)
     assert np.all(res.error < 1e-7)
+
+
+# --------------------------------------------------------------------------- batch independence
+
+
+def _batch_of(rows):
+    """Per-hypothesis Student-t batches from rows [(df, loc, scale) per hypothesis]."""
+    k = len(rows[0])
+    return [
+        _t([r[h][0] for r in rows], [r[h][1] for r in rows], [r[h][2] for r in rows])
+        for h in range(k)
+    ]
+
+
+def test_u_m_of_a_candidate_is_independent_of_its_batch():
+    """End to end from NIG models (including a 51-column RFF residual): scoring a
+    candidate alone, in a batch or in reverse order gives bitwise identical U_M and
+    error estimates, so a candidate's score never depends on which others are
+    feasible. (The xᵀΣx einsum and the RFF matrix product used to break this.)"""
+    from test_nig import _rich_hypothesis
+
+    h_rich, covs, recs = _rich_hypothesis()
+    from probe.engine.ir import FourierTerm, InterceptTerm, LinearGaussianHypothesis, NumericTerm
+
+    simple = [
+        LinearGaussianHypothesis(
+            id=f"S{j}",
+            label=f"S{j}",
+            statement="s",
+            terms=(InterceptTerm(), NumericTerm(covariate="x"), FourierTerm(harmonics=j + 1)),
+        )
+        for j in range(3)
+    ]
+    models = [NIGModel(h, covs) for h in [*simple, h_rich]]
+    rng = make_rng(9, "batch-u")
+    for r in recs[:30]:
+        yv = float(np.sin(r["hour"] / 4) + 0.3 * r["x"] + 0.4 * rng.normal())
+        for m in models:
+            m.update(r, yv)
+    w = np.array([0.3, 0.2, 0.15, 0.35])
+    cands = recs[30:90]
+    full = model_indicator_eig([m.predictive(cands) for m in models], w)
+    rev = model_indicator_eig([m.predictive(cands[::-1]) for m in models], w)
+    np.testing.assert_array_equal(rev.raw[::-1], full.raw)
+    np.testing.assert_array_equal(rev.error[::-1], full.error)
+    for i in range(0, 60, 4):
+        one = model_indicator_eig([m.predictive([cands[i]]) for m in models], w)
+        assert (one.raw[0], one.error[0]) == (full.raw[i], full.error[i]), i
+    q = ContrastQuery(
+        records=({"hour": 14.0, "x": 1.0, "site": "a"}, {"hour": 14.0, "x": 0.0, "site": "a"}),
+        coefs=(1.0, -1.0),
+        threshold=0.2,
+    )
+    g_full = goal_eig(models, w, cands, q)
+    for i in range(0, 60, 9):
+        g_one = goal_eig(models, w, [cands[i]], q)
+        assert (g_one.raw[0], g_one.error[0]) == (g_full.raw[i], g_full.error[i]), i
+
+
+@pytest.mark.parametrize(("k", "n", "s"), [(3, 60, 13), (4, 42, 13), (5, 30, 33), (4, 7, 9)])
+def test_discrete_u_m_of_a_candidate_is_independent_of_its_batch(k, n, s):
+    """Count outcomes: a candidate scored alone, in a batch or in reverse order gets a
+    bitwise identical U_M. The mixture and the weighted sum over hypotheses used
+    ``einsum``, which gave 1-ulp differences for 10-30% of the candidates (found by the
+    environment/engine integration test on system-lab paths)."""
+    rng = make_rng(k * 1000 + n, "batch-discrete")
+    probs = rng.dirichlet(np.full(s, 0.5), size=(k, n))
+    probs[probs < 0.02] = 0.0  # exact zeros, as count mechanisms produce
+    probs /= probs.sum(axis=2, keepdims=True)
+    w = rng.dirichlet(np.ones(k))
+    full = model_indicator_eig([DiscretePredictive(probs[j]) for j in range(k)], w)
+    rev = model_indicator_eig([DiscretePredictive(probs[j][::-1].copy()) for j in range(k)], w)
+    np.testing.assert_array_equal(rev.raw[::-1], full.raw)
+    for i in range(n):
+        one = model_indicator_eig([DiscretePredictive(probs[j][i : i + 1]) for j in range(k)], w)
+        assert one.raw[0] == full.raw[i], i
+
+
+def test_quadrature_panel_cap_is_per_candidate():
+    """With a panel cap small enough to bind on two hard candidates, every candidate's
+    value is still the one it gets alone. A global cap (the old behaviour) made 30
+    easy candidates in the same batch stop refining as soon as the batch as a whole
+    reached the cap. The capped candidate's error estimate stays honest."""
+    rng = make_rng(0, "cap")
+    easy = [
+        [(8.0, float(rng.normal()), 1.0 + float(rng.random())), (12.0, float(rng.normal()), 0.7)]
+        for _ in range(30)
+    ]
+    hard = [(1.5, 0.0, 1e3), (40.0, 7.0, 1e-3)]  # narrow inside very wide, heavy tails
+    far = [(89.5594457, -247299.72063605, 0.00901049), (82088.629, 302190.12486249, 3.69e-4)]
+    rows = [*easy[:15], hard, *easy[15:], far]
+    w = [0.5, 0.5]
+    capped = QuadratureSettings(max_panels=48)
+    batch = model_indicator_eig(_batch_of(rows), w, capped)
+    for i, r in enumerate(rows):
+        alone = model_indicator_eig(_batch_of([r]), w, capped)
+        assert (alone.raw[0], alone.error[0]) == (batch.raw[i], batch.error[i]), i
+    free = model_indicator_eig(_batch_of(rows), w)
+    easy_idx = [i for i in range(len(rows)) if i not in (15, len(rows) - 1)]
+    np.testing.assert_array_equal(batch.raw[easy_idx], free.raw[easy_idx])
+    assert batch.error[15] > 1e3 * free.error[15]  # the cap bound and is reported
+    ref = _reference_u(w, [1.5, 40.0], [0.0, 7.0], [1e3, 1e-3])
+    assert abs(batch.raw[15] - ref) <= batch.error[15]
+    assert abs(free.raw[15] - ref) <= free.error[15] + 1e-12
+
+
+# --------------------------------------------------------------------------- goal EIG details
+
+
+def test_goal_eig_reports_query_probability_of_zero_weight_hypotheses():
+    """``per_hypothesis_prob`` is P(q | m, D) for every hypothesis. It used to report
+    0 for hypotheses with weight 0, which reads as "m says the query is false"."""
+    models, _, _, _ = _fitted_nig_models()
+    q = ContrastQuery(records=({"x0": 1.0, "x1": 0.0},), coefs=(1.0,), threshold=0.5, direction=">")
+    cands = records_from(np.array([[1.0, 1.0]]))
+    w_all = np.array([0.5, 0.3, 0.2])
+    w_cut = np.array([0.7, 0.3, 0.0])
+    full = goal_eig(models, w_all, cands, q)
+    cut = goal_eig(models, w_cut, cands, q)
+    np.testing.assert_array_equal(cut.per_hypothesis_prob, full.per_hypothesis_prob)
+    assert full.per_hypothesis_prob[0] > 0.5  # the fitted slope on x0 is ~0.9 > 0.5
+    assert cut.query_prob == pytest.approx(float(w_cut @ cut.per_hypothesis_prob), rel=1e-14)
+
+    hs = [
+        grid_h("B1", "test_binomial", {"p": (0.1, 0.3, 0.5, 0.7, 0.9)}),
+        grid_h("B2", "test_binomial", {"p": (0.2, 0.4, 0.6)}),
+    ]
+    gm = [GridModel(h, COUNT_OUT) for h in hs]
+    gq = GridQuery(param="p", op=">", value=0.45)
+    res = goal_eig(gm, [1.0, 0.0], [{"n": 3}], gq)
+    np.testing.assert_allclose(res.per_hypothesis_prob, [0.6, 1.0 / 3.0], rtol=1e-14)
+
+
+def test_goal_eig_single_hypothesis_matches_reference():
+    """With a point-mass model posterior, U_q is the within-hypothesis information
+    I(q; Y_d | m, D): checked against scipy on the exact query kernel."""
+    models, _, _, _ = _fitted_nig_models(2)
+    m = models[0]
+    q = ContrastQuery(records=({"x0": 1.0, "x1": 0.0},), coefs=(1.0,), threshold=0.8)
+    cands = records_from(np.array([[2.0, -1.0], [0.0, 2.0]]))
+    res = goal_eig(models, [1.0, 0.0, 0.0], cands, q)
+    p = res.query_prob
+    assert 0.0 < p < 1.0
+    for i, r in enumerate(cands):
+        pred = m.predictive([r])
+        kern = m.linear_query([r], q)
+
+        def h(yv, pred=pred, kern=kern):
+            rr = float(kern.prob_after(np.array([[yv]]), np.array([0]))[0, 0])
+            kl = (
+                special.xlogy(rr, rr)
+                - rr * math.log(p)
+                + special.xlogy(1.0 - rr, 1.0 - rr)
+                - (1.0 - rr) * math.log1p(-p)
+            )
+            return math.exp(float(pred.logpdf(np.array([yv]))[0])) * kl
+
+        ref = _reference_line(h, pred.loc, pred.scale)
+        assert abs(res.raw[i] - ref) <= res.error[i] + 1e-12, (i, res.raw[i], ref)
+        assert res.value[i] > 1e-4

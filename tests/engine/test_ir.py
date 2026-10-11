@@ -109,3 +109,47 @@ def test_priors_and_signature_nesting():
 def test_invalid_sets_rejected(bad):
     with pytest.raises(ValidationError):
         bad()
+
+
+def test_design_matrix_rows_are_independent_of_the_batch():
+    """Each row depends on its own record only (bitwise). The RFF block used a BLAS
+    matrix product, which rounded ~94% of rows of a 300-record batch differently from
+    the same record evaluated alone (~1/3 for this map); it must also agree with the
+    plain formula."""
+    h = _h(
+        "R",
+        [
+            InterceptTerm(),
+            FourierTerm(harmonics=2),
+            RFFTerm(  # 5 input dimensions: with fewer, this BLAS kernel happened to agree
+                inputs=(
+                    RFFInput(covariate="hour", scale=6.0),
+                    RFFInput(covariate="unshielded"),
+                    RFFInput(covariate="shade"),
+                ),
+                n_features=50,
+                lengthscale=1.3,
+            ),
+        ],
+        residual=True,
+    )
+    rng = np.random.default_rng(3)
+    recs = [
+        {
+            "shade": str(rng.choice(["open", "tree", "built"])),
+            "hour": float(rng.uniform(0, 24)),
+            "unshielded": bool(rng.integers(0, 2)),
+        }
+        for _ in range(300)
+    ]
+    full = design_matrix(h, recs, COVS)
+    for i in range(300):
+        np.testing.assert_array_equal(design_matrix(h, [recs[i]], COVS)[0], full[i])
+    np.testing.assert_array_equal(design_matrix(h, recs[::-1], COVS)[::-1], full)
+    # value check against z @ w (agreement to rounding)
+    from probe.engine.ir import _rff_inputs, _rff_params
+
+    t = h.terms[2]
+    w, b = _rff_params(t, {c.name: c for c in COVS})
+    z = _rff_inputs(t, recs, {c.name: c for c in COVS})
+    np.testing.assert_allclose(full[:, -50:], np.sqrt(2 / 50) * np.cos(z @ w + b), atol=1e-14)

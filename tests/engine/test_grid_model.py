@@ -10,6 +10,7 @@ from scipy import special, stats
 
 from probe.determinism import canonical_json, make_rng
 from probe.engine.grid import GridModel, logsumexp
+from probe.engine.mechanisms import register_mechanism, registered_mechanisms
 from probe.engine.models import HypothesisModel
 
 P_GRID = (0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95)
@@ -211,3 +212,69 @@ def test_logsumexp_edge_cases():
     assert float(logsumexp(np.array([0.0, 0.0]))) == pytest.approx(math.log(2))
     out = logsumexp(np.array([[-np.inf, -np.inf], [1000.0, 1000.0]]), axis=1)
     assert out[0] == -np.inf and out[1] == pytest.approx(1000 + math.log(2))
+
+
+class _FragileMechanism:
+    """Binomial outcomes; counts actions in its state; ``advance`` rejects a record
+    with ``"jam": True`` (like a mechanism rejecting an out-of-order timestamp)."""
+
+    name = "test_fragile"
+
+    def __init__(self, support_size):
+        self.support_size = support_size
+
+    def initial_state(self, params):
+        return np.zeros(len(params["p"]))
+
+    def predict(self, state, params, record):
+        k = np.arange(self.support_size)
+        return stats.binom.pmf(k[None, :], int(record["n"]), np.asarray(params["p"])[:, None])
+
+    def advance(self, state, params, record):
+        if record.get("jam"):
+            raise RuntimeError("mechanism cannot execute this action")
+        return state + 1.0
+
+
+if "test_fragile" not in registered_mechanisms():
+    register_mechanism("test_fragile")(_FragileMechanism)
+
+
+def test_failed_update_leaves_the_model_unchanged():
+    """``update`` is atomic: when the mechanism (or the outcome) is rejected, neither
+    the weights nor the evidence change. Previously the posterior and evidence were
+    already updated when ``advance`` raised, so the model had conditioned on an
+    action whose state transition never happened."""
+    m = GridModel(grid_h("F", "test_fragile", {"p": (0.2, 0.5, 0.8)}), COUNT_OUT)
+    m.update({"n": 4}, 3)
+    snap = (m.grid_weights(), m.log_evidence(), m.log_likelihoods(), m.n_obs, m.n_actions)
+    with pytest.raises(RuntimeError):
+        m.update({"n": 4, "jam": True}, 4)
+    with pytest.raises(RuntimeError):
+        m.update({"n": 4, "jam": True}, None)
+    with pytest.raises(ValueError):
+        m.update({"n": 4}, 99)
+    np.testing.assert_array_equal(m.grid_weights(), snap[0])
+    assert m.log_evidence() == snap[1] and (m.n_obs, m.n_actions) == snap[3:]
+    np.testing.assert_array_equal(m.log_likelihoods(), snap[2])
+    np.testing.assert_array_equal(m._state, np.ones(3))
+
+
+def test_summary_marginals_match_enumeration_for_mixed_type_parameters():
+    """Marginals are sums of grid weights per parameter value. Matching values with
+    ``col == v`` gave 0 for the numeric values of a mixed-type parameter such as
+    (1, "lru", 2.5), since numpy stores that column as strings."""
+    h = grid_h("M", "test_binomial", {"mode": (1, "lru", 2.5), "p": (0.2, 0.5, 0.9)})
+    m = GridModel(h, COUNT_OUT)
+    m.update({"n": 6}, 5)
+    s = m.summary()
+    w = m.grid_weights()
+    table = m.grid_table()
+    for name, values in h.params.items():
+        marg = s["marginals"][name]
+        assert sum(marg.values()) == pytest.approx(1.0, abs=1e-14)
+        for v in values:
+            mask = np.array([str(c) == str(v) for c in table[name]])
+            assert marg[str(v)] == pytest.approx(float(w[mask].sum()), abs=1e-15)
+    assert s["marginals"]["p"]["0.9"] > s["marginals"]["p"]["0.2"]
+    canonical_json(s)

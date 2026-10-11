@@ -290,7 +290,9 @@ def test_empty_burst_advances_without_aliasing(kind):
     new = mech.advance(st, params, {"wait": 3, "burst": 0, "clock": 0})
     for k, arr in new.items():
         assert not np.shares_memory(arr, st[k]), k
-    np.testing.assert_array_equal(mech.noiseless_counts(new, params, {"wait": 0, "burst": 0, "clock": 4}), 0)
+    np.testing.assert_array_equal(
+        mech.noiseless_counts(new, params, {"wait": 0, "burst": 0, "clock": 4}), 0
+    )
 
 
 def _trace(svc: RateLimiter, steps):
@@ -338,3 +340,36 @@ def test_deploy_switches_to_a_fresh_service_at_the_deploy_tick():
     assert _trace(svc, [(0, 5), (9, 5), (10, 5)]) == [1, 0, 5]
     with pytest.raises(ValueError):
         DeployService(TokenBucket(1, 1), TokenBucket(1, 1), at=-1)
+
+
+def test_penalty_box_keeps_its_penalty_inside_composites():
+    """Regression: the dual limiter drove its inner limiters through can_admit/admit
+    only, and only PenaltyBox.request() started a penalty, so a penalty box nested in a
+    dual limiter (directly, or as the active side of a deploy) silently never blocked."""
+    steps = [(0, 3), (4, 1), (5, 1)]
+    assert _trace(PenaltyBox(TokenBucket(2, 3), 5), steps) == [2, 0, 1]
+    loose = FixedWindow(100, 1000)  # never binds: the dual must behave like its box
+    assert _trace(DualLimiter(PenaltyBox(TokenBucket(2, 3), 5), loose), steps) == [2, 0, 1]
+    # A request refused only by the *other* limiter is no rejection by the box's inner
+    # limiter: no penalty (t=0: the window refuses the 2nd request; t=2: new window).
+    dual = DualLimiter(PenaltyBox(TokenBucket(5, 1), 50), FixedWindow(1, 2))
+    assert _trace(dual, [(0, 2), (2, 1)]) == [1, 1]
+    # Through a deploy: after tick 10 the active service is a penalty box. At t=12 the
+    # bucket alone would admit (level 2 >= period 2) but the box blocks until 15.
+    steps = [(0, 3), (10, 2), (12, 1), (15, 1)]
+    for wrap in (lambda s: s, lambda s: DualLimiter(s, FixedWindow(100, 1000))):
+        svc = wrap(DeployService(TokenBucket(10, 1), PenaltyBox(TokenBucket(1, 2), 5), at=10))
+        assert _trace(svc, steps) == [3, 1, 0, 1]
+    spec = ServiceSpec(
+        "dual",
+        {},
+        {
+            "first": ServiceSpec(
+                "penalty_box",
+                {"penalty": 5},
+                {"inner": ServiceSpec("token_bucket", {"capacity": 2, "period": 3})},
+            ),
+            "second": ServiceSpec("fixed_window", {"limit": 100, "window": 1000}),
+        },
+    )
+    assert _trace(build_service(spec), [(0, 3), (4, 1), (5, 1)]) == [2, 0, 1]  # type: ignore[arg-type]

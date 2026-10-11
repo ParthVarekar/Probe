@@ -5,13 +5,13 @@ import math
 
 import numpy as np
 import pytest
-from engine_testkit import batch_nig, linear_h, numeric_covs, records_from
+from engine_testkit import batch_nig, exact_nig, linear_h, numeric_covs, records_from
 from scipy import integrate, special, stats
 
 from probe.determinism import canonical_json, make_rng
 from probe.engine.ir import prior_arrays
 from probe.engine.models import HypothesisModel
-from probe.engine.nig import NIGModel
+from probe.engine.nig import NIGModel, _chol_update
 from probe.engine.queries import ContrastQuery
 
 
@@ -207,6 +207,8 @@ def test_conforms_to_protocol_and_summary_is_canonical_json():
         s["beta_scale"], np.sqrt(np.diag(m.posterior.cov) * m.posterior.b / m.posterior.a)
     )
     canonical_json(s)
+    s["columns"].append("tampered")  # a report mutating its copy cannot reach the model
+    assert m.columns == m.summary()["columns"] and "tampered" not in m.columns
 
 
 def test_linear_query_kernel_matches_explicit_update():
@@ -306,3 +308,170 @@ def test_evidence_matches_dynesty_two_coefficients():
     res = sampler.results
     logz, logz_err = float(res.logz[-1]), float(res.logzerr[-1])
     assert abs(logz - m.log_evidence()) < max(4 * logz_err, 0.05), (logz, logz_err)
+
+
+# --------------------------------------------------------------------------- numerical robustness
+
+
+@pytest.mark.parametrize(
+    ("prior_sd", "x_offset", "x_scale", "n"),
+    [
+        (1.0, 0.0, 1.0, 30),
+        (1e4, 1000.0, 100.0, 30),  # diffuse prior, uncentred features
+        (1e6, 50.0, 1.0, 40),
+        (1e8, 0.0, 1.0, 10),
+        (10.0, 0.0, 1000.0, 200),  # large raw features (e.g. irradiance in W/m²)
+        (1e3, 300.0, 1.0, 200),
+    ],
+)
+def test_diffuse_priors_match_exact_rational_arithmetic(prior_sd, x_offset, x_scale, n):
+    """Regression: the covariance-form downdate Σ ← Σ − ΣxxᵀΣ/c subtracts nearly
+    equal numbers when the prior is diffuse. At prior sd 1e4 with uncentred features
+    it was off by 2e-3 in the log evidence (5e-3 relative in μ), and at sd 1e6 it
+    overflowed to NaN and raised. The Cholesky precision factor stays at ~1e-12
+    against the H.4 closed form evaluated in exact rational arithmetic."""
+    p = 3
+    covs = numeric_covs(p)
+    h = linear_h("H", p, prior_sd=prior_sd, intercept_sd=prior_sd, a0=2.0, b0=0.1)
+    rng = make_rng(7, "diffuse")
+    x = x_offset + x_scale * rng.normal(size=(n, p))
+    y = 1.0 + x @ np.array([0.5, -0.2, 0.1]) + 0.3 * rng.normal(size=n)
+    m = _fit(h, covs, x, y)
+    mu0, v0 = prior_arrays(h)
+    ref = exact_nig(np.column_stack([np.ones(n), x]), y, mu0, v0, 2.0, 0.1)
+    post = m.posterior
+    assert m.log_evidence() == pytest.approx(ref["log_evidence"], rel=0, abs=1e-10)
+    assert post.b == pytest.approx(ref["b"], rel=1e-11)
+    np.testing.assert_allclose(post.mu, ref["mu"], rtol=1e-10)
+    np.testing.assert_allclose(post.cov, ref["cov"], rtol=1e-11)
+    pred = m.predictive(records_from(x[:5]))
+    assert np.all(np.isfinite(pred.loc)) and np.all(pred.scale > 0)
+
+
+def test_cholesky_update_is_backward_stable():
+    """R'ᵀR' = RᵀR + xxᵀ + E with |E| ≤ 8(p + 2)·ε·(|R|ᵀ|R| + |x||x|ᵀ) elementwise,
+    the residual evaluated in exact rational arithmetic (refactorizing the float sum
+    RᵀR + xxᵀ is not a reference: at scale 1e6 forming that sum already discards the
+    small entries). For moderate scales R' also matches the refactorization."""
+    from fractions import Fraction
+
+    eps = float(np.finfo(np.float64).eps)
+    rng = make_rng(2, "cholupdate")
+    for p in (1, 2, 5, 12):
+        a = rng.normal(size=(p + 3, p))
+        r = np.linalg.cholesky(a.T @ a + np.eye(p)).T
+        for scale in (1e-6, 1.0, 1e6):
+            x = scale * rng.normal(size=p)
+            x[rng.integers(0, p)] = 0.0  # zero entries skip their rotation
+            got = _chol_update(r, x)
+            assert np.all(np.tril(got, -1) == 0.0) and np.all(np.diag(got) > 0)
+            fr = [[Fraction(float(v)) for v in row] for row in r]
+            fg = [[Fraction(float(v)) for v in row] for row in got]
+            fx = [Fraction(float(v)) for v in x]
+            bound = 8 * (p + 2) * eps * (np.abs(r).T @ np.abs(r) + np.outer(np.abs(x), np.abs(x)))
+            for i in range(p):
+                for j in range(p):
+                    resid = (
+                        sum(fg[k][i] * fg[k][j] for k in range(p))
+                        - sum(fr[k][i] * fr[k][j] for k in range(p))
+                        - fx[i] * fx[j]
+                    )
+                    assert abs(float(resid)) <= bound[i, j], (p, scale, i, j)
+            if scale <= 1.0:
+                want = np.linalg.cholesky(r.T @ r + np.outer(x, x)).T
+                np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-14)
+
+
+def _rich_hypothesis():
+    """Intercept, a Fourier basis, an interaction and a 40-feature RFF block (the
+    residual-style feature map, 51 columns)."""
+    from probe.engine.ir import (
+        CovariateSpec,
+        FourierTerm,
+        InteractionTerm,
+        InterceptTerm,
+        LinearGaussianHypothesis,
+        NumericTerm,
+        RFFInput,
+        RFFTerm,
+    )
+
+    covs = (
+        CovariateSpec(name="hour", kind="numeric"),
+        CovariateSpec(name="x", kind="numeric"),
+        CovariateSpec(name="site", kind="categorical", levels=("a", "b", "c")),
+    )
+    h = LinearGaussianHypothesis(
+        id="R",
+        label="R",
+        statement="rich feature map",
+        terms=(
+            InterceptTerm(prior_sd=5.0),
+            FourierTerm(harmonics=3),
+            InteractionTerm(factors=(NumericTerm(covariate="x"), FourierTerm())),
+            RFFTerm(
+                inputs=(
+                    RFFInput(covariate="hour", scale=6.0),
+                    RFFInput(covariate="x"),
+                    RFFInput(covariate="site"),
+                ),
+                n_features=40,
+            ),
+        ),
+    )
+    rng = make_rng(3, "rich")
+    recs = [
+        {
+            "hour": float(rng.uniform(0, 24)),
+            "x": float(rng.normal()),
+            "site": str(rng.choice(["a", "b", "c"])),
+        }
+        for _ in range(140)
+    ]
+    return h, covs, recs
+
+
+def test_predictive_and_query_kernel_are_independent_of_the_batch():
+    """A candidate's predictive must be a function of that candidate alone (bitwise),
+    or its EIG depends on which other candidates are feasible this step. Both a BLAS
+    matrix product (the RFF features) and a three-operand einsum (xᵀΣx) broke this:
+    ~90% of rows of a 300-record batch differed by an ulp from the same record scored
+    alone."""
+    h, covs, recs = _rich_hypothesis()
+    m = NIGModel(h, covs)
+    rng = make_rng(4, "rich-y")
+    for r in recs[:40]:
+        m.update(r, float(rng.normal()))
+    cands = recs[40:]
+    full = m.predictive(cands)
+    q = ContrastQuery(
+        records=({"hour": 14.0, "x": 1.0, "site": "a"}, {"hour": 14.0, "x": 0.0, "site": "b"}),
+        coefs=(1.0, -1.0),
+        threshold=0.1,
+    )
+    kern = m.linear_query(cands, q)
+    for i, r in enumerate(cands):
+        one = m.predictive([r])
+        assert one.loc[0] == full.loc[i] and one.scale[0] == full.scale[i], i
+        k1 = m.linear_query([r], q)
+        assert (k1.x_mu[0], k1.cc[0], k1.c_sx[0]) == (kern.x_mu[i], kern.cc[i], kern.c_sx[i])
+    rev = m.predictive(cands[::-1])
+    np.testing.assert_array_equal(rev.scale[::-1], full.scale)
+    # and the prequential term of an update uses exactly the reported predictive
+    lp = m.log_predictive(cands[0], 0.3)
+    ev = m.log_evidence()
+    m.update(cands[0], 0.3)
+    assert m.log_evidence() == ev + lp
+
+
+def test_failed_update_leaves_the_model_unchanged():
+    covs = numeric_covs(2)
+    m = NIGModel(linear_h("H", 2), covs)
+    m.update({"x0": 0.5, "x1": 1.0}, 0.2)
+    snap = canonical_json(m.summary())
+    for bad_record, y in (({"x0": 1.0}, 1.0), ({"x0": 1.0, "x1": math.nan}, 1.0)):
+        with pytest.raises((KeyError, ValueError)):
+            m.update(bad_record, y)
+    with pytest.raises(ValueError):
+        m.update({"x0": 1.0, "x1": 2.0}, math.inf)
+    assert canonical_json(m.summary()) == snap

@@ -156,11 +156,18 @@ class GridModel:
 
     # -- update --------------------------------------------------------------
     def update(self, record: Record, y: float | int | None) -> None:
+        """Condition on y (if not missing), then advance the mechanism state for the
+        executed action. Atomic: everything is computed first, so an invalid outcome
+        or a failing mechanism leaves the model exactly as it was."""
+        lp: np.ndarray | None = None
+        lpred = 0.0
         if y is not None:
             k = self._outcome_index(y)
             with np.errstate(divide="ignore"):
                 lp = np.log(self._probs(record)[:, k])
             lpred = float(logsumexp(self._log_w + lp))
+        new_state = self._mech.advance(self._state, self._params, record)
+        if lp is not None:
             self._log_evidence += lpred
             self._loglik = self._loglik + lp
             self._n_obs += 1
@@ -169,7 +176,7 @@ class GridModel:
             else:
                 log_w = self._log_w + lp
                 self._log_w = log_w - logsumexp(log_w)
-        self._state = self._mech.advance(self._state, self._params, record)
+        self._state = new_state
         self._n_actions += 1
 
     # -- evidence ------------------------------------------------------------
@@ -255,13 +262,19 @@ class GridModel:
         ``refuted`` flag, because canonical JSON rejects ±inf."""
         w = self.grid_weights()
         g_map = int(np.argmax(w))
+        # The grid is the C-order Cartesian product over sorted names, so a marginal is
+        # a sum over the other axes of the reshaped weights. (Matching values instead,
+        # ``col == v``, fails for mixed-type parameters such as (1, "lru"): numpy stores
+        # the column as strings and the numeric values never matched.)
+        names = sorted(self._h.params)
+        shaped = w.reshape([len(self._h.params[n]) for n in names]) if names else w
         marginals: dict[str, dict[str, float]] = {}
-        for name in sorted(self._h.params):
-            col = self._params[name]
-            marg: dict[str, float] = {}
-            for v in self._h.params[name]:
-                marg[str(v)] = float(np.sum(w[col == v]))
-            marginals[name] = marg
+        for axis, name in enumerate(names):
+            others = tuple(i for i in range(len(names)) if i != axis)
+            sums = np.sum(shaped, axis=others) if others else shaped
+            marginals[name] = {
+                str(v): float(s) for v, s in zip(self._h.params[name], sums, strict=True)
+            }
         mll = self.max_log_likelihood()
         return {
             "hypothesis_id": self.hypothesis_id,

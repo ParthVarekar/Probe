@@ -118,7 +118,9 @@ class StudentTPredictive:
     def variance(self) -> np.ndarray:
         """scale²·ν/(ν − 2); infinite where ν ≤ 2, scale² in the Gaussian limit ν = ∞."""
         nu = self.df
-        ratio = np.where(np.isinf(nu), 1.0, nu / np.where(nu > 2.0, nu - 2.0, 1.0))
+        finite = np.isfinite(nu)
+        nu_f = np.where(finite & (nu > 2.0), nu, 3.0)  # no inf/inf (a NaN plus a warning)
+        ratio = np.where(finite, nu_f / (nu_f - 2.0), 1.0)
         return np.where(nu > 2.0, self.scale**2 * ratio, np.inf)
 
     def take(self, idx: np.ndarray | list[int]) -> StudentTPredictive:

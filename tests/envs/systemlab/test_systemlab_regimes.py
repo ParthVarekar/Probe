@@ -382,3 +382,30 @@ def test_acceptable_verdicts_without_a_deploy_ignore_the_clock():
                 continue
             for clock in (0, 10, 10_000):
                 assert acceptable_verdicts(p, clock) == tuple(p["acceptable_verdicts"])
+
+
+def test_r2_description_matches_its_grids():
+    """R2's pre-registered description, checked against the grids (it used to claim that
+    almost any burst of four or more separates all three algorithms): at a rested service
+    one burst of 12 gives disjoint admitted counts for the three, while bursts of 4-8 only
+    single out the token bucket."""
+    hs = FAMILY.hypothesis_set("R2")
+    s = hs.outcome.max_count + 1
+
+    def first_counts(burst):
+        out = {}
+        for h in hs.hypotheses:
+            if h.is_residual:
+                continue
+            mech, p = get_mechanism(h.mechanism, s), h.grid_table()
+            rec = {"wait": 0, "burst": burst, "clock": 0}
+            out[h.id] = set(mech.noiseless_counts(mech.initial_state(p), p, rec).tolist())
+        return out
+
+    full = first_counts(12)
+    assert full == {"token_bucket": {2, 3}, "fixed_window": {6, 8}, "sliding_window": {10, 12}}
+    for burst in (4, 6, 8):
+        c = first_counts(burst)
+        assert c["token_bucket"].isdisjoint(c["fixed_window"] | c["sliding_window"])
+        assert not c["fixed_window"].isdisjoint(c["sliding_window"])
+    assert "burst of 12" in FAMILY.regimes()["R2"].description

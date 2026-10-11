@@ -174,8 +174,8 @@ def test_grid_engine_fuzz_prequential_and_no_nan(steps, eps):
     assert not math.isnan(m.log_evidence())
     if math.isinf(total):
         assert m.log_evidence() == -math.inf and m.refuted
-    else:
-        assert total == math.fsum([total]) and abs(total - m.log_evidence()) < 1e-9
+    else:  # the same terms summed in the same order: exactly equal, not just close
+        assert total == m.log_evidence()
     assert m.max_log_likelihood() >= m.log_evidence() - 1e-9 or m.n_obs == 0
 
 
@@ -203,7 +203,7 @@ def test_nig_engine_fuzz_matches_batch(rows):
             xs.append([1.0, x0, x1])
             ys.append(y)
         m.update(r, y)
-    assert abs(total - m.log_evidence()) <= 1e-9 * max(1.0, abs(total))
+    assert total == m.log_evidence()  # prequential terms are the reported predictives
     mu0, v0 = prior_arrays(h)
     ref = batch_nig(np.array(xs).reshape(-1, 3), np.array(ys), mu0, v0, 1.2, 0.7)
     assert m.log_evidence() == ref["log_evidence"] or abs(

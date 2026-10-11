@@ -427,7 +427,10 @@ def _r3_sampler(noise: ReportNoise) -> TruthSampler:
                 "deploy", {"at": at}, {"before": ServiceSpec(k1, p1), "after": ServiceSpec(k2, p2)}
             )
             # Before the deploy the service *is* the registered grid point (k1, p1).
-            pre_deploy = {"until_clock": at, "acceptable_verdicts": [f"hypothesis:{k1}", "none_fits"]}
+            pre_deploy = {
+                "until_clock": at,
+                "acceptable_verdicts": [f"hypothesis:{k1}", "none_fits"],
+            }
         return TruthDraw(
             service=svc,
             noise=noise,
@@ -528,8 +531,9 @@ def _build_r2() -> RegimeConfig:
             id="R2",
             title="Large, easy differences, uniform cost",
             description="The three limiter algorithms live on disjoint capacity scales "
-            "(token bucket 2-3, fixed window 6-8, sliding window 10-12), so almost any burst "
-            "of four or more separates them; 1% status flips; every action costs one unit.",
+            "(token bucket 2-3, fixed window 6-8, sliding window 10-12): one burst of 12 at a "
+            "rested service separates all three, and any burst of four or more already singles "
+            "out the token bucket; 1% status flips; every action costs one unit.",
             expected="tie with stratified: |cost difference| < 5% between P8 and P3; all "
             "policies decide correctly",
             budgets={"small": 4.0, "medium": 8.0, "large": 16.0},

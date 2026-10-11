@@ -370,6 +370,20 @@ def _rff_inputs(
     return np.column_stack(cols)
 
 
+def _row_products(z: np.ndarray, w: np.ndarray) -> np.ndarray:
+    """z @ w with every output row computed from its own input row only (elementwise
+    products summed over the last axis, in row chunks). A BLAS matrix product may round
+    a row differently depending on the other rows of the batch, which made a record's
+    RFF features (and so its predictive and EIG) depend on the batch it was scored in."""
+    wt = np.ascontiguousarray(w.T)  # (D, k)
+    n = z.shape[0]
+    out = np.empty((n, wt.shape[0]))
+    step = max(1, (1 << 21) // max(1, wt.size))
+    for s in range(0, n, step):
+        out[s : s + step] = np.sum(z[s : s + step, None, :] * wt[None, :, :], axis=2)
+    return out
+
+
 def _term_values(
     t: object, records: Sequence[Record], cov: Mapping[str, CovariateSpec]
 ) -> np.ndarray:
@@ -393,7 +407,7 @@ def _term_values(
     if isinstance(t, RFFTerm):
         w, b = _rff_params(t, cov)
         z = _rff_inputs(t, records, cov)
-        return np.sqrt(2.0 / t.n_features) * np.cos(z @ w + b)
+        return np.sqrt(2.0 / t.n_features) * np.cos(_row_products(z, w) + b)
     if isinstance(t, InteractionTerm):
         blocks = [_term_values(f, records, cov) for f in t.factors]
         names = [_term_columns(f) for f in t.factors]

@@ -2,6 +2,9 @@
 feasibility and the EnvironmentFamily surface."""
 
 import dataclasses
+import os
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -218,3 +221,42 @@ def test_env_rejects_mismatched_service():
             ReportNoise(),
             "0" * 64,
         )
+
+
+_DIGEST = """
+import dataclasses
+from probe.determinism import content_hash
+from probe.envs.systemlab import FAMILY, REGIME_IDS
+from probe.truth import EvaluatorKey
+
+
+def digest():
+    out = {}
+    for regime in REGIME_IDS:
+        world = FAMILY.make_world(regime, 5)
+        env, obs = world.env, []
+        for i in range(12):
+            cands = [c for c in env.candidates() if c.feasible]
+            obs.append(dataclasses.asdict(env.execute(cands[(7 * i + 3) % len(cands)].action)))
+        opened = dict(world.truth.open(EvaluatorKey("digest")))
+        out[regime] = [world.truth.commitment, content_hash(opened), content_hash(obs)]
+    return content_hash(out)
+"""
+
+
+def test_worlds_are_identical_across_processes_and_hash_seeds():
+    """Worlds, sealed payloads and observation streams are a pure function of
+    (regime, seed): the same in a fresh interpreter with another PYTHONHASHSEED (so no
+    dict/set ordering or hash() dependence) as in this process."""
+    ns: dict = {}
+    exec(_DIGEST, ns)
+    here = ns["digest"]()
+    hash_seed = "7" if os.environ.get("PYTHONHASHSEED") == "4242" else "4242"
+    out = subprocess.run(
+        [sys.executable, "-c", _DIGEST + "\nprint(digest())"],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONHASHSEED": hash_seed},
+    )
+    assert out.stdout.strip() == here

@@ -14,8 +14,10 @@ Input alphabets:
   row form a burst at one instant.
 
 The service is held privately and never exposed; only the input/output behaviour
-is observable, as for any black-box client. AALpy is a development dependency, so
-:func:`aalpy_sul` imports it lazily.
+is observable, as for any black-box client. The cost meter (steps, resets and their
+unit costs) is read-only, and an oracle cannot be copied or pickled: a copy would be
+a second, unmetered oracle on the same planted service. AALpy is a development
+dependency, so :func:`aalpy_sul` imports it lazily.
 
 Evaluator side (needs the planted service, i.e. an opened sealed truth):
 :func:`mealy_counterexample` decides *exactly* whether a learned Mealy machine is
@@ -53,33 +55,54 @@ class MealyOracle:
             raise ValueError("costs must be >= 0")
         self.__factory = factory
         self.__svc: RateLimiter | Cache = factory()
-        self._t = 0
-        self.alphabet: tuple[str, ...] = tuple(alphabet)
-        self.step_cost = float(step_cost)
-        self.reset_cost = float(reset_cost)
-        self.n_steps = 0
-        self.n_resets = 0
+        self.__t = 0
+        self.__alphabet: tuple[str, ...] = tuple(alphabet)
+        self.__step_cost = float(step_cost)
+        self.__reset_cost = float(reset_cost)
+        self.__n_steps = 0
+        self.__n_resets = 0
+
+    # The meter is read-only: the benchmark charges ``cost`` against the run's budget.
+    @property
+    def alphabet(self) -> tuple[str, ...]:
+        return self.__alphabet
+
+    @property
+    def step_cost(self) -> float:
+        return self.__step_cost
+
+    @property
+    def reset_cost(self) -> float:
+        return self.__reset_cost
+
+    @property
+    def n_steps(self) -> int:
+        return self.__n_steps
+
+    @property
+    def n_resets(self) -> int:
+        return self.__n_resets
 
     @property
     def cost(self) -> float:
-        return self.n_steps * self.step_cost + self.n_resets * self.reset_cost
+        return self.__n_steps * self.__step_cost + self.__n_resets * self.__reset_cost
 
     def reset(self) -> None:
         self.__svc = self.__factory()
-        self._t = 0
-        self.n_resets += 1
+        self.__t = 0
+        self.__n_resets += 1
 
     def step(self, letter: str) -> str:
-        if letter not in self.alphabet:
-            raise ValueError(f"{letter!r} is not in the input alphabet {self.alphabet}")
-        self.n_steps += 1
+        if letter not in self.__alphabet:
+            raise ValueError(f"{letter!r} is not in the input alphabet {self.__alphabet}")
+        self.__n_steps += 1
         svc = self.__svc
         if isinstance(svc, Cache):
             return "hit" if svc.access(letter) else "miss"
         if letter == "tick":
-            self._t += 1
+            self.__t += 1
             return "-"
-        return "ok" if svc.burst(self._t, 1) == 1 else "rej"
+        return "ok" if svc.burst(self.__t, 1) == 1 else "rej"
 
     def query(self, word: Sequence[str]) -> list[str]:
         """Reset, then run ``word``; the outputs, one per input."""
@@ -90,6 +113,10 @@ class MealyOracle:
         return (
             f"MealyOracle(alphabet={self.alphabet}, steps={self.n_steps}, resets={self.n_resets})"
         )
+
+    def __reduce__(self) -> Any:
+        # Also blocks copy.copy/copy.deepcopy, which would give an unmetered oracle.
+        raise TypeError("the oracle cannot be copied or pickled; use the world's own oracle")
 
 
 def aalpy_sul(oracle: MealyOracle) -> Any:

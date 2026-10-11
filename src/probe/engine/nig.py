@@ -2,16 +2,30 @@
 
 Model: y = φ(d)ᵀβ + ε, ε ~ N(0, σ²), β | σ² ~ N(μ₀, σ² V₀), σ² ~ InvGamma(a, b).
 
-State is kept as (μ, Σ = Λ⁻¹, a, b) and updated one observation at a time with
-the Sherman–Morrison rank-1 identity, so each step is O(p²) and the prequential
-decomposition log p(y₁..ₙ) = Σ log p(yᵢ | y<ᵢ) holds by construction:
+**State.** The posterior precision Λ = V⁻¹ (unscaled by σ²) is kept as its upper
+Cholesky factor R (Λ = RᵀR), together with μ, a and b. Each observation (x, y) is
+absorbed one at a time (handover §12 H.4, "rank-1 Cholesky operations"):
 
-* c = 1 + xᵀΣx, r = y − xᵀμ
-* μ ← μ + Σx·r/c,  Σ ← Σ − (Σx)(Σx)ᵀ/c,  a ← a + ½,  b ← b + ½·r²/c
+* q = xᵀΛ⁻¹x = ‖R⁻ᵀx‖²,  c = 1 + q,  r = y − xᵀμ
+* μ ← μ + Λ⁻¹x·r/c,  a ← a + ½,  b ← b + ½·r²/c
+* R ← chol(RᵀR + xxᵀ) by Givens rotations (LINPACK ``dchud``): an orthogonal,
+  backward-stable *update*; nothing is ever subtracted from the precision.
 
-which equals the batch closed form of handover §12 H.4 (V_n, μ_n, a_n, b_n and
-the log evidence; checked in ``tests/engine/test_nig.py``). The one-step
-predictive is t_{2a}(xᵀμ, (b/a)(1 + xᵀΣx)).
+This equals the batch closed form of H.4 (V_n, μ_n, a_n, b_n and the log evidence;
+checked in ``tests/engine/test_nig.py``, also against exact rational arithmetic),
+and the prequential decomposition log p(y₁..ₙ) = Σ log p(yᵢ | y<ᵢ) holds by
+construction. The one-step predictive is t_{2a}(xᵀμ, (b/a)(1 + xᵀΛ⁻¹x)).
+
+The textbook covariance-form downdate Σ ← Σ − ΣxxᵀΣ/c is *not* used: it subtracts
+nearly equal numbers whenever the prior is diffuse relative to the data, and with
+prior sd 10⁴ and uncentred features it lost 2e−3 in the log evidence after 30
+observations (and overflowed to NaN at sd 10⁶). The factor form stays at ~1e−12.
+
+Quadratic forms at candidate designs use W = R⁻ᵀ (lower triangular, computed
+lazily, O(p³/3) once per state) and row-wise reductions, so a candidate's
+predictive is a function of that candidate alone (bitwise), whatever batch it is
+scored in; a BLAS matrix product may round a row differently depending on the
+other rows of the batch.
 
 Besides the :class:`~probe.engine.models.HypothesisModel` contract this module
 offers exact helpers used by the EIG kernels: :meth:`NIGModel.linear_query`
@@ -29,7 +43,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from scipy import special
+from scipy import linalg, special
 
 from probe.engine.ir import (
     CovariateSpec,
@@ -47,6 +61,8 @@ __all__ = ["LinearQueryKernel", "NIGModel", "NIGPosterior", "NIGSamples"]
 _LOG_2PI_E = math.log(2.0 * math.pi * math.e)
 _LOG_2PI = math.log(2.0 * math.pi)
 _EPS = float(np.finfo(np.float64).eps)
+_CHUNK_ELEMENTS = 1 << 21
+"""Element budget of one temporary in :func:`_rows_matvec` (16 MiB)."""
 
 
 def _rows_dot(x: np.ndarray, v: np.ndarray) -> np.ndarray:
@@ -54,6 +70,42 @@ def _rows_dot(x: np.ndarray, v: np.ndarray) -> np.ndarray:
     differently depending on its position in ``x``, which would make a candidate's
     predictive (and hence its EIG) depend on the other candidates in the batch."""
     return np.sum(x * v, axis=1)
+
+
+def _rows_matvec(x: np.ndarray, m: np.ndarray) -> np.ndarray:
+    """out[i] = m @ x[i] for every row of ``x`` (n, p), with ``m`` (k, p): elementwise
+    products summed over the last axis, in row chunks. Each output row depends on its
+    own input row only (bitwise), unlike a BLAS matrix product."""
+    n, p = x.shape
+    k = m.shape[0]
+    out = np.empty((n, k))
+    step = max(1, _CHUNK_ELEMENTS // max(1, k * p))
+    for s in range(0, n, step):
+        out[s : s + step] = np.sum(x[s : s + step, None, :] * m[None, :, :], axis=2)
+    return out
+
+
+def _chol_update(r: np.ndarray, x: np.ndarray) -> np.ndarray:
+    """Upper-triangular R' with R'ᵀR' = RᵀR + xxᵀ and a positive diagonal, by Givens
+    rotations of the rows [R; xᵀ] (LINPACK ``dchud``). Orthogonal, so backward
+    stable; O(p²) elementwise work (no BLAS), and ``math.hypot`` (overflow-safe) is
+    CPython's own routine rather than the platform libm's."""
+    r = r.copy()
+    v = np.array(x, dtype=np.float64)
+    p = v.shape[0]
+    for k in range(p):
+        vk = float(v[k])
+        if vk == 0.0:
+            continue
+        rkk = float(r[k, k])
+        rho = math.hypot(rkk, vk)
+        cs, sn = rkk / rho, vk / rho
+        r[k, k] = rho
+        if k + 1 < p:
+            row = r[k, k + 1 :].copy()
+            r[k, k + 1 :] = cs * row + sn * v[k + 1 :]
+            v[k + 1 :] = cs * v[k + 1 :] - sn * row
+    return r
 
 
 @dataclass(frozen=True)
@@ -158,7 +210,8 @@ class NIGModel:
         self._columns = column_names(h)
         mu0, v0 = prior_arrays(h)
         self._mu = mu0.copy()
-        self._sigma = np.diag(v0)  # Σ = Λ⁻¹ (unscaled by σ²)
+        self._r = np.diag(1.0 / np.sqrt(v0))  # Λ₀ = V₀⁻¹ = RᵀR
+        self._w: np.ndarray | None = np.diag(np.sqrt(v0))  # R⁻ᵀ, so Σ = WᵀW
         self._a = float(h.prior.a0)
         self._b = float(h.prior.b0)
         self._log_evidence = 0.0
@@ -168,6 +221,22 @@ class NIGModel:
     # -- helpers -------------------------------------------------------------
     def _phi(self, records: Sequence[Record]) -> np.ndarray:
         return design_matrix(self._h, records, self._cov)
+
+    def _winv(self) -> np.ndarray:
+        """W = R⁻ᵀ (lower triangular), computed once per state."""
+        if self._w is None:
+            p = self._r.shape[0]
+            self._w = linalg.solve_triangular(self._r, np.eye(p), trans="T", lower=False)
+        return self._w
+
+    def _whiten(self, x: np.ndarray) -> np.ndarray:
+        """W xᵢ per row, shape (n, p): xᵢᵀΣxⱼ = (W xᵢ)·(W xⱼ)."""
+        return _rows_matvec(x, self._winv())
+
+    def _sigma(self) -> np.ndarray:
+        w = self._winv()
+        s = w.T @ w
+        return 0.5 * (s + s.T)
 
     def features(self, records: Sequence[Record]) -> np.ndarray:
         """φ_m at each record, shape (n, p)."""
@@ -187,11 +256,12 @@ class NIGModel:
 
     @property
     def posterior(self) -> NIGPosterior:
-        return NIGPosterior(self._mu.copy(), self._sigma.copy(), self._a, self._b)
+        return NIGPosterior(self._mu.copy(), self._sigma(), self._a, self._b)
 
     def _quad(self, x: np.ndarray) -> np.ndarray:
-        """xᵢᵀΣxᵢ per row, clamped at 0 against rounding."""
-        return np.maximum(np.einsum("ij,jk,ik->i", x, self._sigma, x), 0.0)
+        """xᵢᵀΣxᵢ = ‖W xᵢ‖² per row (never negative)."""
+        z = self._whiten(x)
+        return np.sum(z * z, axis=1)
 
     def _predictive_x(self, x: np.ndarray) -> StudentTPredictive:
         n = x.shape[0]
@@ -215,17 +285,21 @@ class NIGModel:
             return
         yf = _finite_y(y)
         x = self._phi([record])
-        self._log_evidence += float(self._predictive_x(x).logpdf(np.asarray([yf]))[0])
-        x = x[0]
-        sx = self._sigma @ x
-        c = 1.0 + max(float(x @ sx), 0.0)
-        resid = yf - float(x @ self._mu)
+        pred = self._predictive_x(x)  # the same numbers log_predictive reports
+        log_pred = float(pred.logpdf(np.asarray([yf]))[0])
+        z = self._whiten(x)  # W x
+        c = 1.0 + float(np.sum(z * z, axis=1)[0])
+        sx = _rows_matvec(z, self._winv().T)[0]  # Σx = Wᵀ(W x)
+        resid = yf - float(pred.loc[0])
+        r_new = _chol_update(self._r, x[0])
+        # commit (nothing above mutates the state, so a failure leaves it untouched)
+        self._log_evidence += log_pred
         self._mu = self._mu + sx * (resid / c)
-        self._sigma = self._sigma - np.outer(sx, sx) / c
-        self._sigma = 0.5 * (self._sigma + self._sigma.T)  # keep symmetric
         self._a += 0.5
         self._b += 0.5 * resid * resid / c
-        self._xs.append(x)
+        self._r = r_new
+        self._w = None
+        self._xs.append(x[0].copy())
         self._ys.append(yf)
 
     # -- evidence ------------------------------------------------------------
@@ -293,9 +367,10 @@ class NIGModel:
         x = self._phi(records)
         below = query.direction == "<"
         tau = float(query.threshold)
-        c_mu = float(c @ self._mu)
-        sc = self._sigma @ c
-        c_sc = max(float(c @ sc), 0.0) if np.any(c != 0.0) else 0.0
+        c_mu = float(np.sum(c * self._mu))
+        zc = self._whiten(c[None, :])[0]  # W c
+        c_sc = float(np.sum(zc * zc)) if np.any(c != 0.0) else 0.0
+        zx = self._whiten(x)
         if c_sc > 0.0:
             t = (tau - c_mu) / math.sqrt(self._b / self._a * c_sc)
             prior = float(special.stdtr(2.0 * self._a, t if below else -t))
@@ -304,8 +379,8 @@ class NIGModel:
         return LinearQueryKernel(
             prior_prob=prior,
             x_mu=_rows_dot(x, self._mu),
-            cc=1.0 + self._quad(x),
-            c_sx=_rows_dot(x, sc),
+            cc=1.0 + np.sum(zx * zx, axis=1),
+            c_sx=_rows_dot(zx, zc),
             c_mu=c_mu,
             c_sc=c_sc,
             a=self._a,
@@ -316,15 +391,11 @@ class NIGModel:
 
     # -- oracle helpers (brute-force nested Monte Carlo; tests and diagnostics) ---
     def sample_parameters(self, rng: np.random.Generator, size: int) -> NIGSamples:
-        """Draw (β, σ²) from the current joint posterior."""
+        """Draw (β, σ²) from the current joint posterior: β = μ + σ·Wᵀz, z ~ N(0, I)
+        (Wᵀ is a square root of Σ = WᵀW)."""
         sigma2 = self._b / rng.gamma(self._a, 1.0, size=size)
-        try:
-            root = np.linalg.cholesky(self._sigma)
-        except np.linalg.LinAlgError:  # rounding made Σ semi-definite: use a clipped eigen-root
-            evals, evecs = np.linalg.eigh(self._sigma)
-            root = evecs * np.sqrt(np.maximum(evals, 0.0))
         z = rng.standard_normal((size, self._mu.shape[0]))
-        beta = self._mu + np.sqrt(sigma2)[:, None] * (z @ root.T)
+        beta = self._mu + np.sqrt(sigma2)[:, None] * (z @ self._winv())
         return NIGSamples(beta=beta, sigma2=sigma2)
 
     def simulate(self, params: NIGSamples, record: Record, rng: np.random.Generator) -> np.ndarray:
@@ -347,14 +418,15 @@ class NIGModel:
         """``beta_scale`` is the marginal Student-t scale of each coefficient (always
         defined); ``beta_sd`` is its standard deviation, ``None`` while a ≤ 1
         (the marginal variance is then infinite)."""
-        diag = np.diag(self._sigma)
+        w = self._winv()
+        diag = np.sum(w * w, axis=0)  # Σ_jj = Σ_k W_kj²
         scale = np.sqrt(diag * self._b / self._a)
         sd = np.sqrt(diag * self._b / (self._a - 1.0)).tolist() if self._a > 1.0 else None
         return {
             "hypothesis_id": self.hypothesis_id,
             "kind": "linear_gaussian",
             "n": self.n_obs,
-            "columns": self._columns,
+            "columns": list(self._columns),
             "beta_mean": self._mu.tolist(),
             "beta_sd": sd,
             "beta_scale": scale.tolist(),

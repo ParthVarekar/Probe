@@ -18,7 +18,11 @@ Agent-facing surface (:class:`SystemLabEnv`): ``metadata()``, ``candidates()``,
 reset-capable regimes only, ``reset_oracle()`` (one oracle per world, whose cost is
 counted in ``spent``). None of these returns truth fields; metadata and candidates
 are identical for every seed of a regime, and observations differ across seeds only
-in ``value`` (both are tested).
+in ``value`` (both are tested). The regime configuration (regime id, ``in_set``, the
+truth sampler) is held privately like the service. An environment cannot be copied or
+pickled: a copy would execute actions against the same planted service with the same
+counter-based noise, i.e. preview every outcome free of charge. Worlds are rebuilt
+from ``(regime, seed)`` instead.
 
 Evaluator side: the opened payload's ``acceptable_verdicts`` (and, in deploy worlds,
 ``pre_deploy``) are resolved for a finished run by
@@ -82,7 +86,7 @@ class SystemLabEnv(Environment):
         is_cache = config.domain == "cache"
         if service.is_cache() != is_cache:
             raise ValueError("service kind does not match the regime's domain")
-        self._config = config
+        self.__config = config
         self.__seed = seed
         self.__spec = service
         self.__noise = noise
@@ -98,7 +102,7 @@ class SystemLabEnv(Environment):
         """Family, outcome, covariates, cost unit and population. Deliberately free of
         the regime id and title, which would tell a policy regime-level facts such as
         "the truth is outside the set"; the run loop knows the regime separately."""
-        cfg = self._config
+        cfg = self.__config
         return EnvMetadata(
             family=FAMILY_NAME,
             version=FAMILY_VERSION,
@@ -118,10 +122,10 @@ class SystemLabEnv(Environment):
         )
 
     def candidates(self) -> list[Candidate]:
-        return self._config.actions.candidates(self._clock)
+        return self.__config.actions.candidates(self._clock)
 
     def execute(self, action: Action) -> Observation:
-        cand = self._config.actions.candidate(action.id, self._clock)
+        cand = self.__config.actions.candidate(action.id, self._clock)
         if cand is None:
             raise InfeasibleActionError(f"unknown action {action.id!r}")
         if dict(action.params) != dict(cand.action.params):
@@ -129,7 +133,7 @@ class SystemLabEnv(Environment):
         if not cand.feasible:
             raise InfeasibleActionError(f"{action.id}: {cand.infeasible_reason}")
         start = self._clock
-        rng = noise_rng(self.__seed, self._config.spec.id, action.id, start)
+        rng = noise_rng(self.__seed, self.__config.spec.id, action.id, start)
         svc = self.__service
         if isinstance(svc, Cache):
             keys = str(cand.action.params["keys"])
@@ -187,7 +191,7 @@ class SystemLabEnv(Environment):
 
         There is exactly one oracle per world (every call returns the same object), and
         its cost is part of :attr:`spent`, so asking again cannot reset the meter."""
-        cfg = self._config
+        cfg = self.__config
         if not cfg.resettable:
             raise PermissionError("this world offers no reset-capable oracle")
         if self.__oracle is None:
@@ -208,6 +212,10 @@ class SystemLabEnv(Environment):
         return f"SystemLabEnv(step={self._step}, clock={self._clock}, spent={self._spent})"
 
     __str__ = __repr__
+
+    def __reduce__(self) -> Any:
+        # Also blocks copy.copy/copy.deepcopy: a copy previews outcomes without paying.
+        raise TypeError("environments are not copyable or picklable; rebuild from (regime, seed)")
 
 
 # --------------------------------------------------------------------------- family

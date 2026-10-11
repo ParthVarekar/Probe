@@ -37,6 +37,13 @@ Out-of-set services (truths for R3; no registered hypothesis has their form):
 * **deploy**: one service until tick ``at``, then a *fresh* instance of another
   (R3: a different algorithm; R7: the same algorithm with new parameters).
 
+One request is processed by a three-part protocol that composes: ``can_admit()``
+(pure), then ``admit()`` or ``reject()``. ``reject()`` is how a limiter learns that
+a request it refused was turned away (the penalty box starts its penalty there);
+a dual limiter passes the rejection only to the inner limiters that refused the
+request themselves, and a deploy to its active service. So composites nest
+arbitrarily (e.g. a penalty box inside a dual limiter keeps its penalty).
+
 Caches (``policy``, ``size``): hit iff the key is resident. On a miss with a
 full cache the victim is the least recently used (``lru``), the earliest
 inserted (``fifo``), the least frequently used with ties broken by least recent
@@ -110,11 +117,17 @@ class RateLimiter(ABC):
     @abstractmethod
     def admit(self) -> None: ...
 
+    def reject(self) -> None:
+        """A request offered at the current time was turned away after
+        :meth:`can_admit` returned ``False``. Plain limiters keep no record of it."""
+        return None  # deliberately a no-op default (composites override it)
+
     def request(self) -> bool:
-        """One request at the current time: admit it if possible."""
+        """One request at the current time: admit it if possible, else reject it."""
         if self.can_admit():
             self.admit()
             return True
+        self.reject()
         return False
 
     def burst(self, t: int, n: int) -> int:
@@ -235,6 +248,13 @@ class DualLimiter(RateLimiter):
         self.first.admit()
         self.second.admit()
 
+    def reject(self) -> None:
+        # Only an inner limiter that refused the request itself sees a rejection; one
+        # that would have admitted it is untouched (nothing was consumed from it).
+        refused = [c for c in (self.first, self.second) if not c.can_admit()]
+        for c in refused:
+            c.reject()
+
 
 class PenaltyBox(RateLimiter):
     kind = "penalty_box"
@@ -254,14 +274,11 @@ class PenaltyBox(RateLimiter):
     def admit(self) -> None:
         self.inner.admit()
 
-    def request(self) -> bool:
+    def reject(self) -> None:
         if self._t < self._blocked_until:
-            return False  # in the penalty box; does not extend the penalty
-        if self.inner.can_admit():
-            self.inner.admit()
-            return True
+            return  # in the penalty box: never reaches the inner limiter, no extension
+        self.inner.reject()  # not blocked, so the inner limiter refused it
         self._blocked_until = self._t + self.penalty
-        return False
 
 
 class DeployService(RateLimiter):
@@ -289,8 +306,8 @@ class DeployService(RateLimiter):
     def admit(self) -> None:
         self._active().admit()
 
-    def request(self) -> bool:
-        return self._active().request()
+    def reject(self) -> None:
+        self._active().reject()
 
 
 # --------------------------------------------------------------------------- caches

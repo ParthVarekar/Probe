@@ -1,6 +1,7 @@
 """Hidden-truth sealing (handover §12 H.1, H.11): nothing reachable through the
 agent-facing environment surface depends on, or contains, the planted truth."""
 
+import copy
 import dataclasses
 import pickle
 
@@ -8,7 +9,10 @@ import numpy as np
 import pytest
 
 from probe.determinism import canonical_json
-from probe.envs.systemlab import FAMILY, REGIME_IDS
+from probe.envs.base import RegimeSpec
+from probe.envs.systemlab import FAMILY, REGIME_IDS, MealyOracle, RegimeConfig, ServiceSpec
+from probe.envs.systemlab.noise import ReportNoise
+from probe.envs.systemlab.services import Cache, RateLimiter
 from probe.truth import EvaluatorKey
 
 KEY = EvaluatorKey("sealing tests")
@@ -161,3 +165,47 @@ def test_reset_oracle_only_where_declared():
         else:
             with pytest.raises(PermissionError):
                 env.reset_oracle()
+
+
+@pytest.mark.parametrize("regime", ["R1", "R3", "R11"])
+def test_environment_cannot_be_copied_or_pickled(regime):
+    """Regression: copy.deepcopy(env) gave a replica of the planted service with the same
+    counter-based noise, so a policy could read the exact value of every candidate before
+    paying for one (and pickling failed only by accident, on a local function)."""
+    env = FAMILY.make_world(regime, 0).env
+    for clone in (copy.copy, copy.deepcopy, pickle.dumps):
+        with pytest.raises(TypeError):
+            clone(env)
+    assert env.spent == 0.0 and env.clock == 0.0
+
+
+def test_secrets_are_held_only_in_name_mangled_attributes():
+    """The service, its noise, the oracle and the regime configuration (regime id,
+    ``in_set``, truth sampler) are private like microclimate's. Regression: the config was
+    the plain attribute ``_config``, so ``env._config.spec.in_set`` told R3 from R1/R7
+    although their metadata, candidates and hypothesis sets are identical."""
+    secret = (RegimeConfig, RegimeSpec, ServiceSpec, ReportNoise, RateLimiter, Cache, MealyOracle)
+    for regime in ("R3", "R11"):
+        env = FAMILY.make_world(regime, 1).env
+        if regime == "R11":
+            env.reset_oracle()
+        held = {n for n, v in vars(env).items() if isinstance(v, secret)}
+        assert held and all(n.startswith("_SystemLabEnv__") for n in held), held
+        assert not hasattr(env, "_config")
+
+
+def test_oracle_meter_is_read_only_and_the_oracle_uncopyable():
+    """Regression: n_steps/n_resets/step_cost/reset_cost were plain attributes, so the P11
+    budget could be wound back (``oracle.n_steps = 0``) or zeroed, and copy.deepcopy(oracle)
+    gave a second, unmetered oracle on the same planted cache."""
+    env = FAMILY.make_world("R11", 0).env
+    oracle = env.reset_oracle()
+    oracle.query("abca")
+    assert env.spent == 5.0
+    for name in ("n_steps", "n_resets", "step_cost", "reset_cost", "alphabet", "cost"):
+        with pytest.raises(AttributeError):
+            setattr(oracle, name, 0)
+    for clone in (copy.copy, copy.deepcopy, pickle.dumps):
+        with pytest.raises(TypeError):
+            clone(oracle)
+    assert (oracle.n_steps, oracle.n_resets, env.spent) == (4, 1, 5.0)

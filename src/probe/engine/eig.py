@@ -283,12 +283,17 @@ class QuadratureSettings:
     ``geometric_ratio`` beyond the outermost mark out to the span of all
     components. Each side of the line is cut where every component's tail
     probability is at most ``tail_mass``, with ``tail_splits`` initial panels per
-    tail; the cut-off mass enters the error estimate as a rigorous bound."""
+    tail; the cut-off mass enters the error estimate as a rigorous bound.
+
+    ``max_panels`` caps the live panels *per candidate* (hard cases on the
+    reference suite need ~200); a candidate at the cap keeps its panels with their
+    error estimates. Being per candidate, the cap bounds memory per candidate and
+    never couples one candidate's value to the rest of the batch."""
 
     atol: float = 1e-9
     rtol: float = 1e-7
     max_rounds: int = 40
-    max_panels: int = 2_000_000
+    max_panels: int = 2048
     marks: tuple[float, ...] = field(default=(-5.0, 0.0, 5.0))
     geometric_ratio: float = 5.0
     tail_mass: float = 1e-18
@@ -418,9 +423,13 @@ def _integrate_line(
             est = np.bincount(cand, weights=part, minlength=n)
             tol = np.maximum(settings.atol, settings.rtol * np.abs(est))
             budget = (tol / np.maximum(n_init, 1.0))[cand]
-        last = rnd == settings.max_rounds - 1 or 2 * lo.size > settings.max_panels
+        last = rnd == settings.max_rounds - 1
+        # per-candidate panel cap: bisecting would exceed it, so accept as is (with the
+        # honest error estimate). Per candidate, never global, so a candidate's value
+        # does not depend on which other candidates share the batch.
+        capped = 2 * np.bincount(cand, minlength=n) > settings.max_panels
         tiny = half <= 4.0 * _EPS * np.maximum(1.0, np.abs(mid))  # nodes no longer distinct
-        ok = (e <= budget) | tiny | last
+        ok = (e <= budget) | tiny | last | capped[cand]
         val += np.bincount(cand[ok], weights=part[ok], minlength=n)
         err += np.bincount(cand[ok], weights=e[ok], minlength=n)
         if ok.all():
@@ -471,7 +480,8 @@ class GoalEIGResult:
     query_prob: float
     """Model-averaged P(q | D)."""
     per_hypothesis_prob: np.ndarray
-    """P(q | m, D) per hypothesis (set order)."""
+    """P(q | m, D) per hypothesis (set order), also for hypotheses with weight 0
+    (a refuted grid hypothesis answers from its last well-defined posterior)."""
     upper_bound: float
     """H_b(P(q | D)) ≤ log 2."""
     n_evals: int = 0
@@ -559,15 +569,30 @@ def _as_t(p: Predictive) -> StudentTPredictive:
     return p
 
 
+def _weighted_sum(w: np.ndarray, a: np.ndarray) -> np.ndarray:
+    """Σ_k w_k·a[k], accumulated elementwise in hypothesis order. Unlike ``einsum``,
+    whose loop order and SIMD kernel depend on the operands' shapes and strides, every
+    element is the same chain of roundings whatever the batch around it."""
+    out = w[0] * a[0]
+    for k in range(1, a.shape[0]):
+        out = out + w[k] * a[k]
+    return np.asarray(out)
+
+
 def _discrete_mi(w: np.ndarray, probs: np.ndarray) -> np.ndarray:
-    """Σ_k w_k Σ_y P_k(y) log(P_k(y) / Σ_j w_j P_j(y)) for probs (K, n, S)."""
-    mix = np.einsum("k,kns->ns", w, probs)
+    """Σ_k w_k Σ_y P_k(y) log(P_k(y) / Σ_j w_j P_j(y)) for probs (K, n, S).
+
+    The sums over k are :func:`_weighted_sum` and the sum over y a reduction along
+    the last axis of a fresh contiguous array, so a candidate's value depends on its
+    own predictive rows only, bitwise (``einsum`` here made 1-ulp differences between
+    a candidate scored alone and in a batch)."""
+    mix = _weighted_sum(w, probs)
     pos = probs > 0.0
     with np.errstate(divide="ignore"):
         logp = np.log(np.where(pos, probs, 1.0))
         logm = np.log(np.where(mix > 0.0, mix, 1.0))
     terms = np.where(pos, probs * (logp - logm[None]), 0.0)
-    return np.einsum("k,kn->n", w, terms.sum(axis=2))
+    return _weighted_sum(w, np.sum(terms, axis=2))
 
 
 @dataclass(frozen=True)
@@ -769,8 +794,8 @@ def goal_eig(
         nig = [m for m in models if isinstance(m, NIGModel)]
         kernels = [nig[i].linear_query(records, query) for i in act]
         probs = np.array([k.prior_prob for k in kernels])
-        per_h = np.zeros(len(models))
-        per_h[act] = probs
+        per_h = np.array([m.linear_query([], query).prior_prob for m in nig])
+        per_h[act] = probs  # the same numbers the kernels use
         p = float(np.clip(wa @ probs, 0.0, 1.0))
         upper = float(binary_entropy(p))
         if n == 0 or upper <= 0.0:
@@ -784,9 +809,8 @@ def goal_eig(
         if not all(isinstance(m, GridModel) for m in models):
             raise TypeError("GridQuery needs finite_grid models")
         grid = [m for m in models if isinstance(m, GridModel)]
-        per_h = np.zeros(len(models))
-        per_h[act] = [grid[i].query_prob(query) for i in act]
-        p = float(np.clip(w @ per_h, 0.0, 1.0))
+        per_h = np.array([m.query_prob(query) for m in grid])
+        p = float(np.clip(wa @ per_h[act], 0.0, 1.0))
         upper = float(binary_entropy(p))
         if n == 0 or upper <= 0.0:
             z = np.zeros(n)
