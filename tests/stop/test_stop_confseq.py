@@ -69,8 +69,10 @@ def test_subgaussian_boundary_is_tightest_near_t_opt_and_shrinks():
     assert math.log((1 + u) / (u * ALPHA**2)) == pytest.approx(1.0 / u, rel=1e-10)
     # numerical minimiser agrees
     res = optimize.minimize_scalar(
-        lambda r: float(normal_mixture_boundary(50.0, ALPHA, r)), bounds=(1e-3, 1e4),
-        method="bounded", options={"xatol": 1e-10},
+        lambda r: float(normal_mixture_boundary(50.0, ALPHA, r)),
+        bounds=(1e-3, 1e4),
+        method="bounded",
+        options={"xatol": 1e-10},
     )
     assert optimal_rho(50.0, ALPHA) == pytest.approx(res.x, rel=1e-4)
     # radius/t → 0 like sqrt(log t / t)

@@ -66,15 +66,22 @@ def test_json_float():
 def test_tracker_matches_prequential_evidence_and_max_likelihood():
     hs = linear_set()
     res = simulate(
-        hs, LIN_CANDS, linear_truth((0.3, 0.7, 0.0), 0.5), seed=3, n_steps=25,
-        design="cycle", tag="bookkeeping",
+        hs,
+        LIN_CANDS,
+        linear_truth((0.3, 0.7, 0.0), 0.5),
+        seed=3,
+        n_steps=25,
+        design="cycle",
+        tag="bookkeeping",
     )
     tr, models = res.tracker, res.models
     # the numerator is the prequential sum, i.e. each model's log evidence
     np.testing.assert_allclose(
         tr.log_numerators(), [m.log_evidence() for m in models], rtol=1e-12, atol=1e-12
     )
-    np.testing.assert_array_equal(tr.max_log_likelihoods(), [m.max_log_likelihood() for m in models])
+    np.testing.assert_array_equal(
+        tr.max_log_likelihoods(), [m.max_log_likelihood() for m in models]
+    )
     le = tr.log_e()
     for i, mi in enumerate(models):
         for j, mj in enumerate(models):
@@ -243,8 +250,14 @@ def test_eprocess_validity_linear_fast():
     """Null: data from L (intercept + x0) with fixed parameters; adaptive design.
     E(Q : L) and E(R : L) must cross 1/α with probability ≤ α (+ 2 s.e.)."""
     sups = _null_sups(
-        linear_set(), LIN_CANDS, linear_truth((0.5, 0.8, 0.0), 0.7),
-        n_runs=150, n_steps=30, design="contrast", tag="lin-null-fast", pairs=[(1, 0), (2, 0)],
+        linear_set(),
+        LIN_CANDS,
+        linear_truth((0.5, 0.8, 0.0), 0.7),
+        n_runs=150,
+        n_steps=30,
+        design="contrast",
+        tag="lin-null-fast",
+        pairs=[(1, 0), (2, 0)],
     )
     for col in range(sups.shape[1]):
         _assert_valid(sups[:, col])
@@ -253,8 +266,14 @@ def test_eprocess_validity_linear_fast():
 def test_eprocess_validity_grid_fast():
     """Composite grid null 'flat' (b = 0, a on a grid; truth a = 0.5 on the grid)."""
     sups = _null_sups(
-        grid_set(), GRID_CANDS, grid_truth(0.5, 0.0),
-        n_runs=120, n_steps=25, design="contrast", tag="grid-null-fast", pairs=[(1, 0), (2, 0)],
+        grid_set(),
+        GRID_CANDS,
+        grid_truth(0.5, 0.0),
+        n_runs=120,
+        n_steps=25,
+        design="contrast",
+        tag="grid-null-fast",
+        pairs=[(1, 0), (2, 0)],
     )
     for col in range(sups.shape[1]):
         _assert_valid(sups[:, col])
@@ -262,8 +281,14 @@ def test_eprocess_validity_grid_fast():
 
 def test_eprocess_validity_simple_null_is_nearly_tight():
     sups = _null_sups(
-        _tight_set(), GRID_CANDS, grid_truth(0.5, 0.0),
-        n_runs=300, n_steps=30, design="cycle", tag="tight-fast", pairs=[(1, 0)],
+        _tight_set(),
+        GRID_CANDS,
+        grid_truth(0.5, 0.0),
+        n_runs=300,
+        n_steps=30,
+        design="cycle",
+        tag="tight-fast",
+        pairs=[(1, 0)],
     )[:, 0]
     _assert_valid(sups)
     # the simulation is sensitive: the crossing rate at α = 1/2 is far from 0
@@ -296,8 +321,14 @@ def test_eprocess_validity_linear_eig_design_1000_runs():
     """Acceptance criterion (handover §12 Part P): type-I error ≤ α + 2 s.e. over
     1,000 null runs, with the model-indicator-EIG adaptive design."""
     sups = _null_sups(
-        linear_set(), LIN_CANDS, linear_truth((0.5, 0.8, 0.0), 0.7),
-        n_runs=1000, n_steps=60, design="eig", tag="lin-null-slow", pairs=[(1, 0), (2, 0)],
+        linear_set(),
+        LIN_CANDS,
+        linear_truth((0.5, 0.8, 0.0), 0.7),
+        n_runs=1000,
+        n_steps=60,
+        design="eig",
+        tag="lin-null-slow",
+        pairs=[(1, 0), (2, 0)],
     )
     for col in range(sups.shape[1]):
         _assert_valid(sups[:, col])
@@ -306,8 +337,14 @@ def test_eprocess_validity_linear_eig_design_1000_runs():
 @pytest.mark.slow
 def test_eprocess_validity_grid_eig_design_1000_runs():
     sups = _null_sups(
-        grid_set(), GRID_CANDS, grid_truth(0.5, 0.0),
-        n_runs=1000, n_steps=40, design="eig", tag="grid-null-slow", pairs=[(1, 0), (2, 0)],
+        grid_set(),
+        GRID_CANDS,
+        grid_truth(0.5, 0.0),
+        n_runs=1000,
+        n_steps=40,
+        design="eig",
+        tag="grid-null-slow",
+        pairs=[(1, 0), (2, 0)],
     )
     for col in range(sups.shape[1]):
         _assert_valid(sups[:, col])
@@ -316,8 +353,14 @@ def test_eprocess_validity_grid_eig_design_1000_runs():
 @pytest.mark.slow
 def test_eprocess_validity_simple_null_1000_runs():
     sups = _null_sups(
-        _tight_set(), GRID_CANDS, grid_truth(0.5, 0.0),
-        n_runs=1000, n_steps=40, design="contrast", tag="tight-slow", pairs=[(1, 0)],
+        _tight_set(),
+        GRID_CANDS,
+        grid_truth(0.5, 0.0),
+        n_runs=1000,
+        n_steps=40,
+        design="contrast",
+        tag="tight-slow",
+        pairs=[(1, 0)],
     )[:, 0]
     _assert_valid(sups)
 
@@ -331,8 +374,13 @@ def test_eprocess_power_linear():
     finals = []
     for s in range(20):
         r = simulate(
-            linear_set(), LIN_CANDS, linear_truth((0.2, 0.0, 0.9), 0.7), seed=s, n_steps=40,
-            design="contrast", tag="lin-alt",
+            linear_set(),
+            LIN_CANDS,
+            linear_truth((0.2, 0.0, 0.9), 0.7),
+            seed=s,
+            n_steps=40,
+            design="contrast",
+            tag="lin-alt",
         )
         finals.append((r.running_max[1, 0], r.final[1, 0], r.final[0, 1]))
     f = np.asarray(finals)
@@ -343,11 +391,21 @@ def test_eprocess_power_linear():
 
 def test_eprocess_power_grid_and_growth():
     r_short = simulate(
-        grid_set(), GRID_CANDS, grid_truth(0.0, 1.0), seed=7, n_steps=10, design="eig",
+        grid_set(),
+        GRID_CANDS,
+        grid_truth(0.0, 1.0),
+        seed=7,
+        n_steps=10,
+        design="eig",
         tag="grid-alt",
     )
     r_long = simulate(
-        grid_set(), GRID_CANDS, grid_truth(0.0, 1.0), seed=7, n_steps=40, design="eig",
+        grid_set(),
+        GRID_CANDS,
+        grid_truth(0.0, 1.0),
+        seed=7,
+        n_steps=40,
+        design="eig",
         tag="grid-alt",
     )
     assert r_long.final[1, 0] > r_short.final[1, 0]

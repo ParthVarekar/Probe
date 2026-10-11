@@ -140,8 +140,12 @@ def test_residual_at_pi_star_waits_for_min_obs():
 
 @pytest.mark.parametrize(
     "kw",
-    [{"budget_remaining": 0.0}, {"budget_remaining": -1e-9}, {"feasible_count": 0},
-     {"exhausted": True}],
+    [
+        {"budget_remaining": 0.0},
+        {"budget_remaining": -1e-9},
+        {"feasible_count": 0},
+        {"exhausted": True},
+    ],
 )
 def test_budget_exhausted_is_undecided(kw):
     if kw.get("feasible_count") == 0:

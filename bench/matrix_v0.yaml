@@ -1,0 +1,27 @@
+# PROBE benchmark regime matrix v0 (handover §12 Part I).
+# Pre-registered BEFORE any run: the runner hashes this file (minus seeds/workers) and
+# writes the lock hash into every result. Expected winners are the pre-registered
+# predictions; the report scores them as win/tie/lose, including the losses.
+version: v0
+seeds: 20            # per cell; the plan's full run uses 100 (--seeds 100)
+budget: medium
+primary_policy: P8
+baselines: [P1, P2, P3, P4, P5, P9]
+policies: [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10]
+positive_control: {family: microclimate, regime: R10}
+cells:
+  - {family: microclimate, regime: R1,  expected: "adaptive wins"}
+  - {family: microclimate, regime: R2,  expected: "tie with stratified"}
+  - {family: microclimate, regime: R3,  expected: "unguarded adaptive loses on safety; guarded ~ baselines"}
+  - {family: microclimate, regime: R4,  expected: "adaptive wins if shield actions exist"}
+  - {family: microclimate, regime: R5,  expected: "all tie; inconclusive is correct"}
+  - {family: microclimate, regime: R6,  expected: "static maximin >= adaptive"}
+  - {family: microclimate, regime: R7,  expected: "stratified >= adaptive"}
+  - {family: microclimate, regime: R8,  expected: "adaptive may lose"}
+  - {family: microclimate, regime: R9,  expected: "negative interference possible"}
+  - {family: microclimate, regime: R10, expected: "adaptive wins (positive control)"}
+  - {family: systemlab,    regime: R1,  expected: "adaptive wins"}
+  - {family: systemlab,    regime: R2,  expected: "tie"}
+  - {family: systemlab,    regime: R3,  expected: "guarded ~ baselines on safety"}
+  - {family: systemlab,    regime: R10, expected: "adaptive wins (positive control)"}
+  - {family: systemlab,    regime: R11, expected: "automata learning wins (not in v0 policy set)"}

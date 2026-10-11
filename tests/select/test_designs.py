@@ -173,7 +173,11 @@ def test_pairwise_js_matches_per_pair_kernel() -> None:
 
 @pytest.mark.parametrize(
     ("family", "regime", "budget"),
-    [("microclimate", "R1", "medium"), ("microclimate", "R6", "large"), ("systemlab", "R1", "small")],
+    [
+        ("microclimate", "R1", "medium"),
+        ("microclimate", "R6", "large"),
+        ("systemlab", "R1", "small"),
+    ],
 )
 def test_maximin_plan_deterministic_diverse_and_within_budget(
     family: str, regime: str, budget: str
