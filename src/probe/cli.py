@@ -38,6 +38,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="re-aggregate existing results in --out without running",
     )
 
+    cal = sub.add_parser("calibrate", help="calibrate misspecification alarms (H.7)")
+    cal.add_argument("--seeds", type=int, default=30)
+    cal.add_argument("--workers", type=int, default=1)
+
     rec = sub.add_parser("record", help="run and record an experiment in a ledger workspace")
     rec.add_argument("--workspace", type=Path, default=Path("probe_workspace"))
     rec.add_argument("--family", default="microclimate", choices=["microclimate", "systemlab"])
@@ -177,6 +181,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_run(args)
     if args.command == "bench":
         return _cmd_bench(args)
+    if args.command == "calibrate":
+        from probe.bench.calibrate import calibrate
+
+        res = calibrate(args.seeds, args.workers)
+        for fam, e in res.items():
+            r = e["report"]
+            print(
+                f"{fam}: false alarm {r['false_alarm_rate']:.2f}, detection "
+                f"{r['detection_rate']:.2f}, id {e['calibration_id']}"
+            )
+        return 0
     if args.command == "record":
         return _cmd_record(args)
     if args.command == "export":

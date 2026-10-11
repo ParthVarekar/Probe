@@ -57,5 +57,16 @@ class RunProtocol(BaseModel):
     )
     lambda_param: float = Field(default=0.0, ge=0.0, description="Weight λ on parameter EIG.")
 
+    # --- calibrated misspecification alarms (H.7); None disables a signal
+    alarm_residual_weight: float | None = Field(default=0.5, gt=0.0)
+    alarm_surprise_mean: float | None = Field(default=1.0, gt=0.0)
+    alarm_pit_ks: float | None = Field(default=0.4, gt=0.0)
+    alarm_persistence: int = Field(default=3, ge=1)
+    alarm_min_obs: int = Field(default=8, ge=0)
+    alarm_calibration: str = Field(
+        default="uncalibrated-defaults",
+        description="Provenance of the alarm thresholds (calibration id or 'uncalibrated').",
+    )
+
     def protocol_hash(self) -> str:
         return content_hash(self.model_dump(mode="json"))

@@ -34,8 +34,33 @@ def make_protocol(
 ) -> RunProtocol:
     spec = get_family(family).regimes()[regime]
     base: dict[str, Any] = {"budget": float(spec.budgets[budget_key]), "warmup": spec.warmup}
+    base.update(calibrated_alarms(family))
     base.update(overrides or {})
     return RunProtocol(**base)
+
+
+def calibrated_alarms(family: str) -> dict[str, Any]:
+    """Calibrated alarm thresholds for ``family`` (``src/probe/diagnostics/calibration.json``,
+    written by ``probe calibrate``), or ``{}`` to keep the protocol's uncalibrated defaults."""
+    import json
+    from pathlib import Path
+
+    f = Path(__file__).parents[1] / "diagnostics" / "calibration.json"
+    if not f.is_file():
+        return {}
+    entry = json.loads(f.read_text(encoding="utf-8")).get(family)
+    if not entry:
+        return {}
+    keys = (
+        "alarm_residual_weight",
+        "alarm_surprise_mean",
+        "alarm_pit_ks",
+        "alarm_persistence",
+        "alarm_min_obs",
+    )
+    out = {k: entry[k] for k in keys}
+    out["alarm_calibration"] = entry["calibration_id"]
+    return out
 
 
 def run_world(

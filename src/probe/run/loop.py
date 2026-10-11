@@ -30,7 +30,12 @@ from typing import Any
 import numpy as np
 
 from probe.determinism import content_hash, make_rng, rng_state_hash
-from probe.diagnostics import AlarmMonitor, nesting_matrix, observation_diagnostics
+from probe.diagnostics import (
+    AlarmMonitor,
+    AlarmThresholds,
+    nesting_matrix,
+    observation_diagnostics,
+)
 from probe.engine.eig import log_prior_weights, posterior_weights
 from probe.engine.factory import build_models
 from probe.engine.ir import HypothesisSet, ir_hash
@@ -106,6 +111,19 @@ class RunRecord:
     def leader(self) -> str | None:
         v = self.stop.get("leader")
         return None if v is None else str(v)
+
+
+def alarm_thresholds(protocol: RunProtocol) -> AlarmThresholds:
+    def v(x: float | None) -> float:
+        return math.inf if x is None else float(x)
+
+    return AlarmThresholds(
+        residual_weight=v(protocol.alarm_residual_weight),
+        surprise_mean=v(protocol.alarm_surprise_mean),
+        pit_ks=v(protocol.alarm_pit_ks),
+        persistence=protocol.alarm_persistence,
+        min_obs=protocol.alarm_min_obs,
+    )
 
 
 def _predictions(scored: ScoredCandidates, idx: int, ids: tuple[str, ...]) -> dict[str, Any]:
@@ -186,7 +204,7 @@ def run_experiment(
     log_prior = log_prior_weights(hypothesis_set)
     weights = posterior_weights(log_prior, np.zeros(len(models)), protocol.tempering_eta)
     tracker = EProcessTracker(ids)
-    alarms = AlarmMonitor()
+    alarms = AlarmMonitor(alarm_thresholds(protocol))
     rule = StoppingRule(protocol)
     need_u_param = requires_u_param(policy, protocol)
     warm_rng = make_rng(seed, meta.family, "warmup")
@@ -374,8 +392,16 @@ def run_experiment(
         decision_hash=content_hash(seq),
         trajectory_hash=content_hash(traj),
         nesting_known=nests is not None,
-        extra={"residual_id": residual},
+        extra={"residual_id": residual, "alarm_trace": _trace_dict(alarms)},
     )
+
+
+def _trace_dict(alarms: AlarmMonitor) -> dict[str, list[float]]:
+    t = alarms.trace()
+    out: dict[str, list[float]] = {"n_obs": [float(x) for x in np.asarray(t.n_obs)]}
+    for name in ("residual_weight", "surprise_mean", "pit_ks"):
+        out[name] = [float(x) if math.isfinite(x) else 1e300 for x in t.signal(name)]
+    return out
 
 
 def _jsonable_details(d: Mapping[str, Any]) -> dict[str, Any]:
