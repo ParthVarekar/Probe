@@ -113,6 +113,10 @@ a{color:var(--acc)}
       </section>
     </div>
     <section>
+      <h2>Registered hypotheses</h2>
+      <div id="hyps" class="empty">Locked with the protocol when a run starts.</div>
+    </section>
+    <section>
       <h2>Ledger (decisions are committed before their observation)</h2>
       <div class="scroll"><table><thead><tr><th>seq</th><th>step</th><th>event</th><th>detail</th></tr></thead><tbody id="log"></tbody></table></div>
     </section>
@@ -226,6 +230,9 @@ function handle(e){
   if(e.type==='protocol_locked'){
     hyps = p.hypothesis_set.hypotheses.map(h=>h.id);
     residual = (p.hypothesis_set.hypotheses.find(h=>h.is_residual)||{}).id;
+    $('hyps').innerHTML = '<table><thead><tr><th>id</th><th>statement</th><th>kind</th><th>prior</th></tr></thead><tbody>' +
+      p.hypothesis_set.hypotheses.map((h,i)=>`<tr><td><i style="display:inline-block;width:10px;height:3px;background:var(${COLORS[i%6]})"></i> <b>${esc(h.id)}</b>${h.is_residual?' <span class="badge b-warmup">residual</span>':''}</td><td>${esc(h.label)}<br><span class="exp">${esc(h.statement)}</span></td><td>${esc(h.kind)}</td><td class="num">${fmt(h.prior_weight)}</td></tr>`).join('') + '</tbody></table>' +
+      `<div class="exp">Registered at step 0; evidence counts only data observed after registration. IR hash in the report.</div>`;
     detail = `protocol <code>${p.protocol_hash.slice(0,12)}…</code> · budget ${p.protocol.budget} · π*=${p.protocol.pi_star} · α=${p.protocol.alpha}`;
     legend();
   } else if(e.type==='decision'){

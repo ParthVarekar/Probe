@@ -1,0 +1,17 @@
+# EXPLORATORY (not pre-registered): does the adaptive-audit variant P8a recover the
+# positive control without losing safety? Results must be reported as exploratory.
+version: v0-explore-p8a
+seeds: 100
+budget: large
+primary_policy: P8a
+baselines: [P1, P2, P3, P4, P5, P9]
+policies: [P1, P3, P4, P5, P7, P8, P8a, P9]
+positive_control: {family: microclimate, regime: R10}
+cells:
+  - {family: microclimate, regime: R10, expected: "exploratory"}
+  - {family: microclimate, regime: R2,  expected: "exploratory"}
+  - {family: microclimate, regime: R4,  expected: "exploratory"}
+  - {family: microclimate, regime: R3,  expected: "exploratory"}
+  - {family: microclimate, regime: R8,  expected: "exploratory"}
+  - {family: systemlab,    regime: R1,  expected: "exploratory"}
+  - {family: systemlab,    regime: R3,  expected: "exploratory"}
