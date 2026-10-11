@@ -84,6 +84,22 @@ def test_no_truth_values_in_agent_facing_outputs(regime):
         assert opened["salt"] not in blob
 
 
+@pytest.mark.parametrize("regime", ["R1", "R3", "R10"])
+def test_world_seed_never_reaches_the_agent(regime):
+    """The true hypothesis is a public deterministic function of (regime, seed)
+    (block randomisation), so an agent that sees the seed can name the truth without
+    an EvaluatorKey. Official seeds are private (handover §12 H.11): the seed and the
+    world id (which embeds it) must not appear in metadata, candidates, observations
+    or repr."""
+    seed = 731_942_105
+    world = FAMILY.make_world(regime, seed)
+    blob = _agent_blob(world, steps=10, policy_seed=3).replace(repr(world.truth), "")
+    assert str(seed) not in blob
+    assert world.env.world_id not in blob
+    assert "seed" not in canonical_json(world.env.metadata()).decode()
+    assert world.env.world_id == f"microclimate/{regime}/{seed}"  # evaluator-side only
+
+
 def test_sealed_truth_is_redacted_and_verifiable():
     world = FAMILY.make_world("R4", 2)
     text = repr(world.truth) + str(world.truth)
@@ -121,13 +137,10 @@ def test_environment_and_truth_are_not_picklable():
 def test_metadata_extra_holds_only_public_design():
     md = FAMILY.make_world("R3", 0).env.metadata()
     assert set(md.extra) == {
-        "world_id",
         "regime",
-        "seed",
         "campaign_window_min",
         "start_position",
         "dwell_options_min",
-        "wait_options_min",
         "settle_min",
         "shield_availability",
         "mast_sites",

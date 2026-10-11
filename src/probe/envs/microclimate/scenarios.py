@@ -12,8 +12,10 @@ is visible in every result.
 (which hypothesis is true, effect sizes, noise, nuisance series) are sealed in its
 :class:`~probe.truth.SealedTruth`. Each regime's pre-registered expectation is in
 its :class:`~probe.envs.base.RegimeSpec` ``expected`` field, written before any
-run. Budgets are in field-effort minutes (travel + settling + dwell; waiting is
-free but the campaign window bounds the clock).
+run. Budgets are in field-effort minutes (travel + settling + dwell). The clock
+advances by exactly the effort spent, and every regime satisfies
+``window_start + large budget <= window_end``, so the budget (never the campaign
+window) is what ends a run, for every policy (tested).
 
 How truths are chosen: for in-set regimes the true hypothesis is
 block-randomised by seed over the regime's pool (each pool member appears exactly
@@ -274,7 +276,7 @@ REGIME_CONFIGS: dict[str, RegimeConfig] = {
             description="In-set worlds; the truth is block-randomised over H1-H4 by seed. "
             "Effects are small (0.7x the medium scale; in H3 truths 50-80% of the shade effect "
             "varies with time of day, an interaction of a few tenths of a degree, comparable to "
-            "one reading's noise). Spread campus with walking times of 1-20 min and "
+            "one reading's noise). Spread campus with walking times from 1 min up to 10-20 min and "
             "longer settling for shielded readings, so costs are heterogeneous. Clean sensors: "
             "Gaussian noise, no unit offsets, MAR dropouts only.",
             expected="Adaptive wins: guarded cost-aware model-indicator EIG (P8) reaches the "
@@ -291,7 +293,7 @@ REGIME_CONFIGS: dict[str, RegimeConfig] = {
             id="R2",
             title="Large known main effects, uniform cost",
             description="In-set worlds; the truth is block-randomised over H1 and H2. Large "
-            "main effects (1.4x medium scale). Compact campus (walks of 1-4 min) and equal "
+            "main effects (1.4x medium scale). Compact campus (walks of 1-5 min) and equal "
             "settling for both shields, so every reading costs about the same.",
             expected="Tie with stratified sampling: |difference in cost-to-decision| < 5% "
             "between P8 and P3.",
@@ -365,15 +367,19 @@ REGIME_CONFIGS: dict[str, RegimeConfig] = {
             id="R6",
             title="Tiny budget",
             description="In-set worlds (truth block-randomised over H1-H4, large effects) on a "
-            "sparse campus where every move takes at least 3 minutes, so a reading costs at "
-            "least 10 minutes; budgets allow at most 3, 4 and 5 readings, warm-up included.",
+            "sparse campus where every move takes at least 3 minutes and every reading needs "
+            "5 minutes of settling (the sensor is re-deployed each time), so the first reading "
+            "costs at least 13 minutes and any later one at least 10, even when staying at the "
+            "same site; budgets allow at most 3, 4 and 5 readings, warm-up included.",
             expected="The static maximin design (P9) does at least as well as adaptive selection.",
             expected_verdict="hypothesis",
-            budgets=(30.0, 45.0, 55.0),
+            budgets=(35.0, 45.0, 55.0),
             warmup=1,
             truth_pool=_ALL4,
             effect_scale=1.4,
             layout="sparse",
+            settle_unshielded=5.0,
+            settle_shielded=5.0,
         ),
         RegimeConfig(
             id="R7",
@@ -446,7 +452,7 @@ REGIME_CONFIGS: dict[str, RegimeConfig] = {
             "residual H0.",
             expected="Adaptive selection wins clearly; if it does not, the benchmark is invalid.",
             expected_verdict="hypothesis",
-            budgets=(60.0, 120.0, 200.0),
+            budgets=(80.0, 120.0, 200.0),
             warmup=3,
             truth_pool=("H1", "H4"),
             hypothesis_ids=("H1", "H4", "H0"),
@@ -457,7 +463,10 @@ REGIME_CONFIGS: dict[str, RegimeConfig] = {
             notes="H2 and H3 are not registered here: they nest H1, and over a 4-hour window "
             "their extra columns are nearly collinear with the shade indicators, so no policy "
             "could separate them from H1 within budget and the control would measure Occam "
-            "ambiguity instead of design value.",
+            "ambiguity instead of design value. The small budget (80 min) leaves room after "
+            "the warm-up for one mast reading plus follow-up readings; at 60 min a mast "
+            "reading was the last affordable action, so no policy could reach a decision and "
+            "the control could not separate policies in that cell.",
         ),
     )
 }
@@ -489,6 +498,7 @@ def scenario_manifest() -> dict[str, Any]:
                 "window": list(c.window),
                 "layout": c.layout,
                 "shield_sites": c.shield_sites,
+                "settle_min": {"unshielded": c.settle_unshielded, "shielded": c.settle_shielded},
             }
             for k, c in REGIME_CONFIGS.items()
         },

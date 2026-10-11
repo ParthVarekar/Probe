@@ -70,8 +70,7 @@ class GridModel:
                 f"outcome needs {self._support}"
             )
         table = h.grid_table()
-        for col in table.values():
-            col.setflags(write=False)
+        _freeze(table)
         self._params: Mapping[str, np.ndarray] = table
         self._g = h.grid_size()
         self._state: Any = self._mech.initial_state(self._params)
@@ -194,7 +193,7 @@ class GridModel:
         w = self.grid_weights()
         active = w > 0.0
         wa = w[active]
-        h_w = float(-np.sum(special.xlogy(wa, wa)))
+        h_w = float(0.0 - np.sum(special.xlogy(wa, wa)))  # +0.0 for a point mass
         out = np.empty(len(records))
         for i, r in enumerate(records):
             p = self._probs(r)[active]
@@ -247,7 +246,9 @@ class GridModel:
 
     # -- misc ----------------------------------------------------------------
     def clone(self) -> GridModel:
-        return copy.deepcopy(self)
+        c = copy.deepcopy(self)
+        _freeze(c._params)  # deepcopy returns writeable arrays
+        return c
 
     def summary(self) -> dict[str, Any]:
         """JSON-able summary. Non-finite numbers are reported as ``None`` with the
@@ -274,9 +275,16 @@ class GridModel:
             "max_log_likelihood": mll if math.isfinite(mll) else None,
             "map": {k: _plain(v[g_map]) for k, v in sorted(self._params.items())},
             "map_weight": float(w[g_map]),
-            "posterior_entropy": float(-np.sum(special.xlogy(w, w))),
+            "posterior_entropy": float(0.0 - np.sum(special.xlogy(w, w))),
             "marginals": marginals,
         }
+
+
+def _freeze(table: Mapping[str, np.ndarray]) -> None:
+    """Make the grid parameter columns read-only, so a mechanism that writes to
+    ``params`` fails loudly instead of corrupting the grid."""
+    for col in table.values():
+        col.setflags(write=False)
 
 
 def _plain(v: Any) -> float | int | str:

@@ -61,8 +61,8 @@ def test_salt_is_keyed_from_the_seed():
         assert world.truth.verify(opened)
 
 
-def _pick(env, site, shield, dwell, wait):
-    want = {"site": site, "shield": shield, "dwell": dwell, "wait": wait}
+def _pick(env, site, shield, dwell):
+    want = {"site": site, "shield": shield, "dwell": dwell}
     return next(c for c in env.candidates() if c.feasible and c.action.params == want)
 
 
@@ -80,9 +80,9 @@ def test_crn_same_measurement_same_value_regardless_of_history():
         b = FAMILY.make_world("R1", seed).env
         settle = a.metadata().extra["settle_min"]
         assert (settle["unshielded"], settle["shielded"]) == (2.0, 5.0)
-        a.execute(_pick(a, "S05", "unshielded", 15, 0).action)  # history A: 17 minutes
-        b.execute(_pick(b, "S05", "shielded", 5, 0).action)  # history B: 10 + 7 minutes
-        b.execute(_pick(b, "S05", "unshielded", 5, 0).action)
+        a.execute(_pick(a, "S05", "unshielded", 15).action)  # history A: 17 minutes
+        b.execute(_pick(b, "S05", "shielded", 5).action)  # history B: 10 + 7 minutes
+        b.execute(_pick(b, "S05", "unshielded", 5).action)
         assert a.clock == b.clock and a.position == b.position == "S05"
         assert [c.action.id for c in a.candidates()] == [c.action.id for c in b.candidates()]
         for k in range(3):  # the next three identical actions observe identical values
@@ -91,21 +91,72 @@ def test_crn_same_measurement_same_value_regardless_of_history():
             _same(a.execute(action), b.execute(action))
 
 
-def test_crn_value_independent_of_wait_used_to_reach_the_start_time():
-    """History A waits 60 min at base, then reads S02. History B walks to S02 and spends
-    exactly 60 min on three shielded 15-min readings (5 + 15 each), then reads S02 with
-    no wait. Both readings have the same identity (site, shield, dwell, start time), so
-    they must give the same value although the action ids differ (wait=60 vs wait=0)."""
-    for seed in range(4):
-        a = FAMILY.make_world("R1", seed).env
-        b = FAMILY.make_world("R1", seed).env
-        oa = a.execute(_pick(a, "S02", "unshielded", 5, 60).action)
-        for _ in range(3):
-            b.execute(_pick(b, "S02", "shielded", 15, 0).action)
-        ob = b.execute(_pick(b, "S02", "unshielded", 5, 0).action)
-        assert oa.meta["t_start"] == ob.meta["t_start"]
-        assert oa.action_id != ob.action_id
-        _same(oa, ob)
+def _route_twins(env):
+    """Pairs of first readings (at *different* sites) after which the same second
+    reading starts at the same minute: the second reading then has the same
+    measurement identity although the team arrives from different places."""
+    md = env.metadata()
+    walk = md.extra["campus"]["walk_minutes"]
+    idx = md.extra["campus"]["walk_index"]
+    settle = md.extra["settle_min"]
+    w0 = md.extra["campaign_window_min"][0]
+    firsts = [c for c in env.candidates() if c.feasible]
+    by_start: dict[tuple, list] = {}
+    for c in firsts:
+        here = idx.index(c.action.params["site"])
+        for x in ("S03", "S11", "S20"):
+            for shield in ("shielded", "unshielded"):
+                t_start = w0 + c.cost + walk[here][idx.index(x)] + settle[shield]
+                by_start.setdefault((x, shield, t_start), []).append(c)
+    twins = []
+    for (x, shield, _), cs in sorted(by_start.items(), key=lambda kv: str(kv[0])):
+        sites = {c.action.params["site"] for c in cs}
+        if len(sites) >= 2:
+            a = cs[0]
+            b = next(c for c in cs if c.action.params["site"] != a.action.params["site"])
+            twins.append((a.action.id, b.action.id, x, shield))
+    return twins
+
+
+def test_crn_value_depends_on_measurement_identity_not_on_the_route():
+    """Histories that read different sites first (different values, different
+    positions) but start the same next reading at the same minute must observe the
+    same value for it: noise is keyed by (site, shield, dwell, start time), never by
+    the history or by how many draws were made before."""
+    checked = 0
+    for seed in range(3):
+        for a_id, b_id, site, shield in _route_twins(FAMILY.make_world("R1", seed).env)[:6]:
+            a = FAMILY.make_world("R1", seed).env
+            b = FAMILY.make_world("R1", seed).env
+            first_a = a.execute(next(c for c in a.candidates() if c.action.id == a_id).action)
+            first_b = b.execute(next(c for c in b.candidates() if c.action.id == b_id).action)
+            assert first_a.meta["site"] != first_b.meta["site"]
+            assert a.position != b.position
+            nxt = _pick(a, site, shield, 5).action
+            oa, ob = a.execute(nxt), b.execute(nxt)
+            assert oa.meta["t_start"] == ob.meta["t_start"]
+            _same(oa, ob)
+            checked += 1
+    assert checked >= 10
+
+
+def test_noise_differs_across_measurement_identities(hidden_world):
+    """CRN must not collapse into identical noise: readings of the same site at the
+    same start time with a different dwell, or at a different start time, use
+    different streams; repeating one identity repeats its value exactly."""
+    from probe.envs.microclimate.records import design_record
+
+    hidden = hidden_world("R1", 3)
+    site = hidden._campus.sites[4]
+    resid = {}
+    for dwell in (5.0, 15.0):
+        for t0 in (600.0, 600.5, 601.0):
+            rec = design_record(site, "unshielded", t0 + dwell / 2, hidden._solar)
+            vals = [hidden.measure(4, "unshielded", dwell, t0, rec)[0] for _ in range(3)]
+            assert len(set(vals)) == 1  # pure function of the identity
+            if vals[0] is not None:
+                resid[(dwell, t0)] = vals[0] - hidden.expected(4, "unshielded", t0 + dwell / 2, rec)
+    assert len(set(np.round(list(resid.values()), 6))) >= 5
 
 
 def test_no_shared_state_between_worlds():

@@ -20,7 +20,7 @@ truth and sensor model), :mod:`.env` (agent-facing environment),
 :mod:`.family` (``make_world``).
 """
 
-from .env import DWELLS, VERSION, WAITS, MicroclimateEnv
+from .env import DWELLS, VERSION, MicroclimateEnv, mast_sites
 from .family import FAMILY, MicroclimateFamily, make_world
 from .hypotheses import COVARIATES, HYPOTHESIS_IDS, OUTCOME, build_hypothesis_set
 from .scenarios import (
@@ -43,12 +43,12 @@ __all__ = [
     "REGIME_IDS",
     "SCENARIOS",
     "VERSION",
-    "WAITS",
     "MicroclimateEnv",
     "MicroclimateFamily",
     "RegimeConfig",
     "build_hypothesis_set",
     "make_world",
+    "mast_sites",
     "regime_specs",
     "scenario_manifest",
     "scenario_manifest_hash",

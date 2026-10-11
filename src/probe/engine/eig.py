@@ -13,18 +13,32 @@ sum of log-ratios, so a tiny U_M is not the difference of two large entropies.
   exact; the reported error is 0.
 * **Student-t outcomes** (:class:`StudentTPredictive`): one 1-D integral per
   candidate, by vectorized *adaptive Gauss–Kronrod* (G7/K15 pairs, QUADPACK error
-  estimate) over the real line in the coordinate y = c + w·sinh(v), under which
-  the polynomial Student-t tails decay exponentially; the range extends until the
-  heaviest tail has decayed by e^−46 (far beyond the plan's "±12 scale units"),
-  and an estimate of the cut-off mass is added to the error.
-  Initial breakpoints sit at loc_m + {0, ±5, ±25, ±125, ...}·scale_m for every
-  component (geometric out to the span of all components), so narrow components
-  inside wide ones and tail mass between far-apart components are always seen.
-  Panels are bisected until each meets its share of the tolerance (error budgets
-  halve on bisection), every candidate in one array pass per round. Log densities
-  are combined with log-sum-exp. The per-candidate error estimate is the sum of
-  the accepted panels' QUADPACK estimates (conservative: on the reference suite
-  the true error is orders of magnitude below it).
+  estimate); see :func:`_integrate_line`. In brief:
+
+  - *Range.* Each side is cut where every component's own tail probability is
+    at most ``tail_mass`` (1e−18; the Student-t quantile, ≈ ±8.8 scale units in
+    the Gaussian limit and far beyond for heavy tails), instead of a fixed
+    "±12 scale units". The integrand is f(y)·KL(r(y) ‖ π) with responsibilities
+    r(y), so it is non-negative and at most f(y)·(−log min π); the cut-off mass is
+    therefore rigorously bounded by (−log min π)·Σ_m π_m P_m(outside) (exact
+    Student-t CDFs), which is added to the error.
+  - *Breakpoints* sit at loc_m + {0, ±5, ±25, ±125, ...}·scale_m (geometric out
+    to the span of all components), plus the midpoints between neighbouring
+    locations, so narrow components inside wide ones and tail mass between
+    far-apart components are always seen.
+  - *Coordinates.* Every panel is anchored at the component location A nearest to
+    it (constant over the panel thanks to the midpoint breakpoints) and mapped by
+    y = A + h·sinh(v), h = that component's scale: linear near A, logarithmic in
+    the polynomial tails (where a Student-t integrand decays exponentially in v),
+    and every standardized offset (y − loc_m)/scale_m is formed from the single-
+    rounding differences A − loc_m and the local coordinate, so components ~10⁹ of their
+    own scales apart are resolved to full precision.
+  - Panels are bisected until each meets its share of the tolerance (error
+    budgets halve on bisection), every candidate in one array pass per round.
+    Log densities are combined with log-sum-exp. The per-candidate error estimate
+    is the sum of the accepted panels' QUADPACK estimates plus the truncation
+    bound (conservative: on the reference suite the true error is orders of
+    magnitude below it).
 
 Bounds are *asserted* before clipping: a raw value outside [0, H(π)] by more than
 its error estimate plus rounding raises :class:`NumericalIntegrityError` instead
@@ -93,14 +107,24 @@ class DegeneratePosteriorError(ValueError):
 
 
 def entropy(weights: np.ndarray | Sequence[float]) -> float:
-    """Shannon entropy (nats) of a probability vector, 0·log 0 = 0."""
+    """Shannon entropy (nats) of a probability vector, 0·log 0 = 0. A point mass gives
+    +0.0, never −0.0 (canonical JSON, and so every logged hash, tells them apart)."""
     w = np.asarray(weights, dtype=np.float64)
-    return float(-np.sum(special.xlogy(w, w)))
+    return float(0.0 - np.sum(special.xlogy(w, w)))
 
 
 def binary_entropy(p: np.ndarray | float) -> np.ndarray:
+    """H_b(p) in nats (+0.0 at p ∈ {0, 1})."""
     q = np.clip(np.asarray(p, dtype=np.float64), 0.0, 1.0)
-    return np.asarray(-special.xlogy(q, q) - special.xlogy(1.0 - q, 1.0 - q))
+    return np.asarray(0.0 - (special.xlogy(q, q) + special.xlogy(1.0 - q, 1.0 - q)))
+
+
+def _rowdot(a: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Σ_j a[..., j]·v[j] by a plain reduction over the last axis. Unlike a BLAS
+    matrix-vector product, the value for one row does not depend on which other rows
+    share the array, so a candidate's information gain is a function of that
+    candidate alone (bitwise), whatever batch it is scored in."""
+    return np.sum(a * v, axis=-1)
 
 
 def _active(w: np.ndarray) -> list[int]:
@@ -251,11 +275,15 @@ _EPS = float(np.finfo(np.float64).eps)
 
 @dataclass(frozen=True)
 class QuadratureSettings:
-    """Adaptive Gauss–Kronrod controls. The tolerance per candidate is
-    max(atol, rtol·|initial estimate|); it is split evenly over the initial panels
-    and halved on every bisection. The tails are integrated out to where the
-    heaviest component has decayed by exp(−``tail_decay``) beyond its outermost
-    breakpoint, in ``tail_splits`` initial panels per side."""
+    """Adaptive Gauss–Kronrod controls (see :func:`_integrate_line`).
+
+    The tolerance per candidate is max(atol, rtol·|initial estimate|); it is split
+    evenly over the initial panels and halved on every bisection. Breakpoints sit
+    at loc + ``marks``·scale per component, extended by factors of
+    ``geometric_ratio`` beyond the outermost mark out to the span of all
+    components. Each side of the line is cut where every component's tail
+    probability is at most ``tail_mass``, with ``tail_splits`` initial panels per
+    tail; the cut-off mass enters the error estimate as a rigorous bound."""
 
     atol: float = 1e-9
     rtol: float = 1e-7
@@ -263,119 +291,148 @@ class QuadratureSettings:
     max_panels: int = 2_000_000
     marks: tuple[float, ...] = field(default=(-5.0, 0.0, 5.0))
     geometric_ratio: float = 5.0
-    tail_decay: float = 46.0
+    tail_mass: float = 1e-18
     tail_splits: int = 4
+
+    def __post_init__(self) -> None:
+        if not (self.atol > 0.0 and self.rtol >= 0.0):
+            raise ValueError("atol must be positive and rtol non-negative")
+        if not 0.0 < self.tail_mass < 1e-3:
+            raise ValueError("tail_mass must lie in (0, 1e-3)")
+        if self.max_rounds < 1 or self.max_panels < 1 or self.tail_splits < 1:
+            raise ValueError("max_rounds, max_panels and tail_splits must be positive")
+        if not self.geometric_ratio > 1.0:
+            raise ValueError("geometric_ratio must exceed 1")
 
 
 _DEFAULT_QUAD = QuadratureSettings()
 _Y_CAP = 1e100
-"""Integration never extends beyond |y − c| = 1e100 × the narrowest feature, so
-standardized values stay far from float overflow."""
+"""The range never extends more than 1e100 × the narrowest scale beyond the
+outermost location, so standardized values stay far from float overflow (only
+heavier-than-Cauchy tails, ν ≲ 0.2, ever reach this cap; their cut-off mass is
+then larger, but it is still bounded exactly and reported)."""
+_MAX_SPAN = 1e100
+"""Components further apart than this many of the narrowest scale are rejected as
+numerically meaningless."""
+_DF_GAUSS = 1e300
+"""Finite stand-in for ν = +inf in the log-density kernel."""
+
+
+def _nearest_location(y: np.ndarray, loc: np.ndarray, scale: np.ndarray) -> np.ndarray:
+    """Index of the component location nearest to each y (ties: smaller scale,
+    then lower index). ``y`` (P,), ``loc``/``scale`` (P, K)."""
+    dist = np.abs(y[:, None] - loc)
+    best = np.min(dist, axis=1, keepdims=True)
+    return np.argmin(np.where(dist == best, scale, np.inf), axis=1)
 
 
 def _integrate_line(
     breaks: np.ndarray,
-    center: np.ndarray,
-    width: np.ndarray,
-    feature: np.ndarray,
-    tail_rate: np.ndarray,
-    integrand: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    loc: np.ndarray,
+    scale: np.ndarray,
+    y_lo: np.ndarray,
+    y_hi: np.ndarray,
+    integrand: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     settings: QuadratureSettings,
 ) -> tuple[np.ndarray, np.ndarray, int]:
-    """∫_ℝ g_i(y) dy for candidates i = 0..n−1, vectorized adaptive G7/K15.
+    """∫ g_i(y) dy over [y_lo_i, y_hi_i] for candidates i = 0..n−1, vectorized
+    adaptive G7/K15 (QUADPACK qk15 rule and error estimate).
 
-    ``breaks`` (n, B) are initial breakpoints in y (NaN = unused); ``integrand(y,
-    cand)`` receives node values y of shape (P, 15) and the candidate index of each
-    panel row, and returns g of the same shape. Returns (values, error estimates,
-    number of integrand evaluations).
+    ``loc``/``scale`` (n, K) are the mixture components, ``breaks`` (n, B) extra
+    initial breakpoints in y (NaN = unused). Returns (values, error estimates,
+    number of integrand evaluations); the caller adds its bound on the mass
+    outside [y_lo, y_hi].
 
-    Coordinates: y = c + w·sinh(v). Near the components (|y − c| ≲ w) the map is
-    almost linear; in the tails a Student-t integrand ∝ |y|^−(ν+1) becomes
-    ∝ exp(−ν|v|), smooth and exponentially decaying, so there is no endpoint
-    singularity even for ν < 1 and no loss of coordinate precision. ``tail_rate``
-    (n,) is that decay rate (the smallest ν). The range is cut where the
-    integrand has decayed by exp(−tail_decay) past the outermost breakpoint (or
-    at the overflow guard); the cut-off mass is estimated as 2|g(v_end)|/rate and
-    added to the error.
+    **Anchored coordinates.** The component locations and the midpoints between
+    neighbouring locations are breakpoints, so the location nearest to a panel is
+    the same for all of it. Each panel is anchored there: with A = loc_a and
+    h = scale_a of that component, y = A + h·sinh(v), and the integrand is called
+    as ``integrand(t, off, cand)`` with the *local* coordinate t = y − A (P, 15),
+    the offsets off[:, m] = A − loc_m (P, K; one rounding each) and the candidate of each
+    panel row; y − loc_m = off_m + t. Because A is the nearest location,
+    |t| ≤ |y − loc_m| for every m, so each standardized value (y − loc_m)/scale_m
+    carries a relative rounding error of a few ε however far apart the components
+    are. (In one global coordinate, a component 10⁹ of its scales away from the
+    frame's origin is blurred to ~10⁻⁷ of its width, and the adaptive loop chases
+    that noise until the panel cap.) Near A the map is linear; far from it a
+    Student-t integrand ∝ |y|^−(ν+1) becomes ∝ exp(−ν|v|), so heavy tails out to
+    the quantile range have no endpoint singularity.
 
-    The error estimate is the sum of (i) the accepted panels' QUADPACK estimates,
-    (ii) that truncation estimate and (iii) a *coordinate-resolution* term: nodes
-    are represented to about ε·(|c| + 10w) in y, which perturbs features of width
-    ``feature`` (n,) by that relative amount, so 4ε(|c| + 10w)/feature · ∫|g| is
-    added. (iii) is negligible unless components span ≳ 10⁶ of their scales."""
-    n = breaks.shape[0]
-    with np.errstate(invalid="ignore"):
-        v = np.arcsinh((breaks - center[:, None]) / width[:, None])
-    finite = np.isfinite(v)
-    v_min = np.min(np.where(finite, v, np.inf), axis=1)
-    v_max = np.max(np.where(finite, v, -np.inf), axis=1)
-    v_min = np.where(np.isfinite(v_min), v_min, 0.0)
-    v_max = np.where(np.isfinite(v_max), v_max, 0.0)
-    v_cap = np.arcsinh(_Y_CAP * feature / width)
-    reach = settings.tail_decay / tail_rate
-    v_lo = np.maximum(v_min - reach, -v_cap)
-    v_hi = np.minimum(v_max + reach, v_cap)
+    The error estimate is the sum of the accepted panels' QUADPACK estimates
+    (each at least 50ε·∫|g| over the panel, QUADPACK's rounding floor)."""
+    n = loc.shape[0]
+    rows = np.arange(n)
+    srt = np.sort(loc, axis=1)
+    mids = 0.5 * (srt[:, 1:] + srt[:, :-1])
+    pts = np.concatenate([breaks, loc, mids], axis=1)
+    pts = np.clip(pts, y_lo[:, None], y_hi[:, None])  # NaN stays NaN
+    finite = np.isfinite(pts)
+    inner_lo = np.min(np.where(finite, pts, np.inf), axis=1)
+    inner_hi = np.max(np.where(finite, pts, -np.inf), axis=1)
+    tails = []
     steps = np.arange(1, settings.tail_splits, dtype=np.float64) / settings.tail_splits
-    left = v_lo[:, None] + (v_min - v_lo)[:, None] * steps
-    right = v_max[:, None] + (v_hi - v_max)[:, None] * steps
-    inner = np.where(finite, np.clip(v, v_lo[:, None], v_hi[:, None]), v_hi[:, None])
-    edges = np.sort(
-        np.concatenate([v_lo[:, None], left, inner, right, v_hi[:, None]], axis=1), axis=1
-    )
-    lo = edges[:, :-1].ravel()
-    hi = edges[:, 1:].ravel()
-    cand = np.repeat(np.arange(n), edges.shape[1] - 1)
+    for outer, inner in ((y_lo, inner_lo), (y_hi, inner_hi)):
+        ia = _nearest_location(outer, loc, scale)
+        anchor, h_t = loc[rows, ia], scale[rows, ia]
+        v0 = np.arcsinh((outer - anchor) / h_t)
+        v1 = np.arcsinh((inner - anchor) / h_t)
+        v = v0[:, None] + (v1 - v0)[:, None] * steps
+        tails.append(anchor[:, None] + h_t[:, None] * np.sinh(v))
+    pts = np.sort(np.concatenate([y_lo[:, None], pts, *tails, y_hi[:, None]], axis=1), axis=1)
+    lo_y, hi_y = pts[:, :-1], pts[:, 1:]
+    valid = hi_y > lo_y  # False wherever NaN is involved
+    cand = np.broadcast_to(rows[:, None], lo_y.shape)[valid]
+    y_a, y_b = lo_y[valid], hi_y[valid]
+    a = _nearest_location(0.5 * (y_a + y_b), loc[cand], scale[cand])
+    anchor, h = loc[cand, a], scale[cand, a]
+    lo = np.arcsinh((y_a - anchor) / h)
+    hi = np.arcsinh((y_b - anchor) / h)
     keep = hi > lo
-    lo, hi, cand = lo[keep], hi[keep], cand[keep]
+    lo, hi, cand, a, h = lo[keep], hi[keep], cand[keep], a[keep], h[keep]
     n_init = np.bincount(cand, minlength=n).astype(np.float64)
+    offsets = loc[:, :, None] - loc[:, None, :]  # [i, a, m] = loc_a − loc_m
 
     val = np.zeros(n)
     err = np.zeros(n)
-    absint = np.zeros(n)
     budget: np.ndarray | None = None
     n_evals = 0
     for rnd in range(settings.max_rounds):
         half = 0.5 * (hi - lo)
         mid = 0.5 * (hi + lo)
         vv = mid[:, None] + half[:, None] * _GK_NODES
-        wc = width[cand][:, None]
-        y = center[cand][:, None] + wc * np.sinh(vv)
-        g = integrand(y, cand) * (wc * np.cosh(vv))
+        hh = h[:, None]
+        g = integrand(hh * np.sinh(vv), offsets[cand, a], cand) * (hh * np.cosh(vv))
         n_evals += g.size
-        resk = g @ _GK_WK
-        resg = g @ _GK_WG
+        resk = _rowdot(g, _GK_WK)
+        resg = _rowdot(g, _GK_WG)
         mean = 0.5 * resk
-        resabs = np.abs(g) @ _GK_WK
-        resasc = np.abs(g - mean[:, None]) @ _GK_WK
+        resabs = _rowdot(np.abs(g), _GK_WK)
+        resasc = _rowdot(np.abs(g - mean[:, None]), _GK_WK)
         raw = np.abs(resk - resg)
         with np.errstate(divide="ignore", invalid="ignore"):
             scaled = resasc * np.minimum(1.0, (200.0 * raw / resasc) ** 1.5)
         e = np.where((resasc > 0.0) & (raw > 0.0), scaled, raw)
         e = np.maximum(e, 50.0 * _EPS * resabs) * half
-        k = resk * half
+        part = resk * half
         if budget is None:
-            est = np.bincount(cand, weights=k, minlength=n)
+            est = np.bincount(cand, weights=part, minlength=n)
             tol = np.maximum(settings.atol, settings.rtol * np.abs(est))
             budget = (tol / np.maximum(n_init, 1.0))[cand]
         last = rnd == settings.max_rounds - 1 or 2 * lo.size > settings.max_panels
         tiny = half <= 4.0 * _EPS * np.maximum(1.0, np.abs(mid))  # nodes no longer distinct
         ok = (e <= budget) | tiny | last
-        val += np.bincount(cand[ok], weights=k[ok], minlength=n)
+        val += np.bincount(cand[ok], weights=part[ok], minlength=n)
         err += np.bincount(cand[ok], weights=e[ok], minlength=n)
-        absint += np.bincount(cand[ok], weights=resabs[ok] * half[ok], minlength=n)
         if ok.all():
             break
         bad = ~ok
-        lo_b, hi_b, mid_b, c_b, b_b = lo[bad], hi[bad], mid[bad], cand[bad], budget[bad]
+        lo_b, hi_b, mid_b, b_b = lo[bad], hi[bad], mid[bad], 0.5 * budget[bad]
         lo = np.concatenate([lo_b, mid_b])
         hi = np.concatenate([mid_b, hi_b])
-        cand = np.concatenate([c_b, c_b])
-        budget = np.concatenate([0.5 * b_b, 0.5 * b_b])
-    ends = np.stack([v_lo, v_hi], axis=1)
-    g_end = integrand(center[:, None] + width[:, None] * np.sinh(ends), np.arange(n))
-    g_end = g_end * width[:, None] * np.cosh(ends)
-    err += 2.0 * np.sum(np.abs(g_end), axis=1) / tail_rate
-    err += 4.0 * _EPS * (np.abs(center) + 10.0 * width) / feature * absint
+        cand = np.concatenate([cand[bad], cand[bad]])
+        a = np.concatenate([a[bad], a[bad]])
+        h = np.concatenate([h[bad], h[bad]])
+        budget = np.concatenate([b_b, b_b])
     if not (np.all(np.isfinite(val)) and np.all(np.isfinite(err))):
         raise NumericalIntegrityError("non-finite value in information-gain quadrature")
     return val, err, n_evals
@@ -531,8 +588,15 @@ class _TParts:
         loc = np.stack([t.loc for t in ts], axis=1).astype(np.float64)
         scale = np.stack([t.scale for t in ts], axis=1).astype(np.float64)
         df = np.stack([t.df for t in ts], axis=1).astype(np.float64)
+        if not (np.all(np.isfinite(loc)) and np.all(np.isfinite(scale))):
+            raise ValueError("Student-t predictives need finite loc and scale")
+        if np.any(np.isnan(df)):
+            raise ValueError("Student-t predictives need df > 0")
         const = t_log_normalizer(df) - np.log(scale)
-        return _TParts(loc, scale, df, const, -0.5 * (df + 1.0), 1.0 / scale, 1.0 / df)
+        # ν = +inf (Gaussian): −½(ν+1)·log1p(z²/ν) → −z²/2 is evaluated at ν = 1e300,
+        # identical to double precision (scipy's CDF/quantile take +inf directly)
+        df_k = np.minimum(df, _DF_GAUSS)
+        return _TParts(loc, scale, df, const, -0.5 * (df_k + 1.0), 1.0 / scale, 1.0 / df_k)
 
     def take(self, idx: np.ndarray) -> _TParts:
         return _TParts(
@@ -545,9 +609,10 @@ class _TParts:
             self.inv_df[idx],
         )
 
-    def logpdf(self, y: np.ndarray, cand: np.ndarray) -> np.ndarray:
-        """log p_k(y) for node values y (P, Q): shape (P, Q, K)."""
-        z = y[:, :, None] - self.loc[cand][:, None, :]
+    def logpdf(self, t: np.ndarray, off: np.ndarray, cand: np.ndarray) -> np.ndarray:
+        """log p_k(y) at y = A + t, for local coordinates t (P, Q) and offsets
+        off[:, k] = A − loc_k (P, K) (see :func:`_integrate_line`): shape (P, Q, K)."""
+        z = t[:, :, None] + off[:, None, :]
         z *= self.inv_scale[cand][:, None, :]
         z *= z
         z *= self.inv_df[cand][:, None, :]
@@ -555,6 +620,13 @@ class _TParts:
         z *= self.coef[cand][:, None, :]
         z += self.const[cand][:, None, :]
         return z
+
+    def check_span(self) -> None:
+        span = np.max(self.loc, axis=1) - np.min(self.loc, axis=1)
+        if np.any(span > _MAX_SPAN * np.min(self.scale, axis=1)):
+            raise NumericalIntegrityError(
+                "predictive components are more than 1e100 of the narrowest scale apart"
+            )
 
     def breaks(self, settings: QuadratureSettings, width: np.ndarray) -> np.ndarray:
         """Initial breakpoints loc + scale·marks, extended geometrically
@@ -572,7 +644,7 @@ class _TParts:
         reach = 2.0 * width[:, None] / self.scale  # (n, K), in scale units
         r = settings.geometric_ratio
         n_ext = int(np.ceil(np.log(max(float(np.max(reach)) / top, 1.0)) / np.log(r)))
-        n_ext = min(n_ext, 60)
+        n_ext = min(n_ext, 300)
         mult = top * r ** np.arange(1, n_ext + 1, dtype=np.float64)
         if mult.size:
             keep = mult[None, None, :] <= reach[:, :, None] * r
@@ -587,6 +659,27 @@ class _TParts:
         center = 0.5 * (lo + hi)
         width = np.maximum(np.max(self.scale, axis=1), 0.5 * (hi - lo))
         return center, width
+
+    def limits(self, w: np.ndarray, tail_mass: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Integration range [y_lo, y_hi] per candidate, chosen so that every
+        component has tail probability ≤ ``tail_mass`` beyond each end (Student-t
+        quantile; capped at ``_Y_CAP`` narrowest scales beyond the outermost
+        location), and the mixture mass outside it, Σ_k w_k P_k(Y ∉ [y_lo, y_hi]),
+        from exact Student-t CDFs at the final (possibly capped) ends."""
+        uq, inv = np.unique(self.df, return_inverse=True)
+        zq = -special.stdtrit(uq, tail_mass)[inv.ravel()].reshape(self.df.shape)
+        zq = np.where(np.isfinite(zq) & (zq > 0.0), zq, _Y_CAP)
+        s_min = np.min(self.scale, axis=1)
+        cap_lo = np.min(self.loc, axis=1) - _Y_CAP * s_min
+        cap_hi = np.max(self.loc, axis=1) + _Y_CAP * s_min
+        y_lo = np.maximum(np.min(self.loc - zq * self.scale, axis=1), cap_lo)
+        y_hi = np.minimum(np.max(self.loc + zq * self.scale, axis=1), cap_hi)
+        below = special.stdtr(self.df, (y_lo[:, None] - self.loc) * self.inv_scale)
+        above = special.stdtr(self.df, (self.loc - y_hi[:, None]) * self.inv_scale)
+        outside = _rowdot(below + above, w)
+        if not np.all(np.isfinite(outside)):
+            raise NumericalIntegrityError("non-finite tail mass in information-gain quadrature")
+        return y_lo, y_hi, outside
 
 
 def _student_t_mi(
@@ -605,30 +698,33 @@ def _student_t_mi(
     if todo.size == 0:
         return raw, err, 0
     sub = parts.take(todo)
+    sub.check_span()
     logw = np.log(w)
 
-    def integrand(y: np.ndarray, cand: np.ndarray) -> np.ndarray:
+    def integrand(t: np.ndarray, off: np.ndarray, cand: np.ndarray) -> np.ndarray:
         # Σ_k π_k p_k (log p_k − log f) with d_k = log π_k + log p_k − m (m = max_k),
         # e_k = exp(d_k), s = Σ_k e_k:  log p_k − log f = d_k − log π_k − log s, so
-        # the integrand is e^m [Σ_k e_k (d_k − log π_k) − s log s]. The dominant
-        # component contributes −log π_k − log s with no large cancelling terms.
-        d = sub.logpdf(y, cand)
+        # the integrand is e^m [Σ_k e_k (d_k − log π_k) − s log s] = f·KL(r ‖ π) ≥ 0
+        # with responsibilities r_k = e_k / s. The dominant component contributes
+        # −log π_k − log s with no large cancelling terms.
+        d = sub.logpdf(t, off, cand)
         d += logw
         m = np.max(d, axis=2)
         d -= m[:, :, None]
         e = np.exp(d)
         s = np.sum(e, axis=2)
-        inner = np.einsum("pqk,pqk->pq", e, d) - e @ logw - s * np.log(s)
+        inner = np.einsum("pqk,pqk->pq", e, d) - _rowdot(e, logw) - s * np.log(s)
         return np.exp(m) * inner
 
-    center, width = sub.frame()
-    feature = np.min(sub.scale, axis=1)
-    rate = np.min(sub.df, axis=1)
+    _, width = sub.frame()
+    y_lo, y_hi, outside = sub.limits(w, settings.tail_mass)
     val, er, n_evals = _integrate_line(
-        sub.breaks(settings, width), center, width, feature, rate, integrand, settings
+        sub.breaks(settings, width), sub.loc, sub.scale, y_lo, y_hi, integrand, settings
     )
     raw[todo] = val
-    err[todo] = er
+    # outside [y_lo, y_hi]: 0 ≤ f·KL(r ‖ π) ≤ f·(−log min π), so the cut-off part of
+    # the integral lies in [0, (−log min π)·Σ_k π_k P_k(outside)]
+    err[todo] = er + float(-np.min(logw)) * outside
     return raw, err, n_evals
 
 
@@ -724,30 +820,40 @@ def _contrast_query_mi(
     settings: QuadratureSettings,
 ) -> tuple[np.ndarray, np.ndarray, int]:
     parts = _TParts.build(ts)
+    for j, kern in enumerate(kernels):
+        # the kernel's residual y − xᵀμ is formed from the same anchored offsets
+        if not np.array_equal(kern.x_mu, parts.loc[:, j]):
+            raise ValueError("query kernels and predictives disagree on the predictive mean")
+    parts.check_span()
     logw = np.log(w)
     log_p = math.log(p)
     log_1mp = math.log1p(-p)
 
-    def integrand(y: np.ndarray, cand: np.ndarray) -> np.ndarray:
-        lp = parts.logpdf(y, cand)
+    def integrand(t: np.ndarray, off: np.ndarray, cand: np.ndarray) -> np.ndarray:
+        # f·KL(Bern(r) ‖ Bern(p)) with f = Σ_k π_k p_k and r = Σ_k resp_k·P(q | k, D, y)
+        lp = parts.logpdf(t, off, cand)
         a = lp + logw
         m = np.max(a, axis=2)
         e = np.exp(a - m[:, :, None])
         s = np.sum(e, axis=2)
         resp = e / s[:, :, None]
-        rq = np.stack([k.prob_after(y, cand) for k in kernels], axis=2)
+        rq = np.stack(
+            [kern.prob_after_resid(t + off[:, j, None], cand) for j, kern in enumerate(kernels)],
+            axis=2,
+        )
         r = np.clip(np.sum(resp * rq, axis=2), 0.0, 1.0)
         kl = special.xlogy(r, r) - r * log_p + special.xlogy(1.0 - r, 1.0 - r) - (1.0 - r) * log_1mp
         return np.exp(m) * s * kl
 
-    trans = np.stack([k.transition_points() for k in kernels], axis=1)
-    center, width = parts.frame()
+    trans = np.stack([kern.transition_points() for kern in kernels], axis=1)
+    _, width = parts.frame()
     breaks = np.concatenate([parts.breaks(settings, width), trans], axis=1)
-    widths = np.concatenate([parts.scale, *(k.transition_widths()[:, None] for k in kernels)], 1)
-    feature = np.nanmin(np.where(widths > 0.0, widths, np.nan), axis=1)
-    feature = np.where(np.isfinite(feature), feature, np.min(parts.scale, axis=1))
-    rate = np.min(parts.df, axis=1)
-    return _integrate_line(breaks, center, width, feature, rate, integrand, settings)
+    y_lo, y_hi, outside = parts.limits(w, settings.tail_mass)
+    val, err, n_evals = _integrate_line(
+        breaks, parts.loc, parts.scale, y_lo, y_hi, integrand, settings
+    )
+    # outside [y_lo, y_hi]: 0 ≤ f·KL(Bern(r) ‖ Bern(p)) ≤ f·max(−log p, −log(1 − p))
+    return val, err + max(-log_p, -log_1mp) * outside, n_evals
 
 
 # --------------------------------------------------------------------------- test oracles
@@ -765,7 +871,9 @@ class SupportsNestedMC(Protocol):
 
 def _sample_predictive(p: Predictive, i: int, rng: np.random.Generator, size: int) -> np.ndarray:
     if isinstance(p, StudentTPredictive):
-        return p.loc[i] + p.scale[i] * rng.standard_t(p.df[i], size=size)
+        nu = float(p.df[i])
+        z = rng.standard_normal(size) if math.isinf(nu) else rng.standard_t(nu, size=size)
+        return p.loc[i] + p.scale[i] * z
     cdf = np.cumsum(p.probs[i])
     u = rng.random(size) * cdf[-1]
     return np.minimum(np.searchsorted(cdf, u, side="right"), cdf.size - 1)

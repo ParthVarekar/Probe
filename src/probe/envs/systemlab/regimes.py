@@ -8,24 +8,31 @@ regime:
   window, sliding window (R5: token bucket vs. its GCRA twin, the leaky meter),
   each a :class:`~probe.engine.ir.GridHypothesis` over its parameters, plus the
   structure-free ``allowance`` residual. Actions: wait, then burst; cost is wall
-  time (heterogeneous), except in R2 (uniform).
+  time (heterogeneous), except in R2 and R6 (one unit per probe).
 * **caches** (R11): LRU, FIFO and LFU over a size grid, plus the stack-distance
   ``reuse`` residual. Actions: key-reuse patterns (uniform cost). The planted
-  cache is a deterministic CLOCK or MRU cache, a finite-state machine outside the
+  cache is a deterministic MRU or CLOCK cache, a finite-state machine outside the
   set: the home turf of automata learning, where the hypothesis-driven engine can
   at best say "none fits".
 
-Truth draws use ``make_rng(seed, "systemlab", regime, "truth")``. In-set truths
-are a registered hypothesis at one of its grid points, with the declared noise,
-so the hypothesis set is exactly well specified. Each draw also states the
-verdicts that count as correct (``acceptable_verdicts``) for the scorer: the
-true hypothesis id; ``"none_fits"`` when the truth is outside the set;
-``"inconclusive"`` in R5, where the two structured hypotheses are
-observationally equivalent.
+How truths are chosen. The truth's *class* (which registered hypothesis, which
+out-of-set family, which R11 variant) is **block-randomised by seed**: each class
+appears exactly once in every block of ``len(classes)`` consecutive seeds, in an
+order drawn from ``make_rng(0, "systemlab", regime, "truth-block", block)``, so a
+benchmark cell of ``k·len(classes)`` seeds is exactly balanced. Everything else
+(grid point, out-of-set variant, deploy tick) comes from
+``make_rng(seed, "systemlab", regime, "truth")``. In-set truths are a registered
+hypothesis at one of its grid points, with the declared noise, so the hypothesis
+set is exactly well specified. Each draw also states the verdicts that count as
+correct (``acceptable_verdicts``) for the scorer: the true hypothesis id;
+``"none_fits"`` when the truth is outside the set; ``"inconclusive"`` in R5,
+where the two structured hypotheses are observationally equivalent.
 
 Budgets are in the regime's cost unit (ticks, actions or accesses). They were
 sized with the exact reference filter in ``tests/envs/systemlab`` so that
-"medium" lets even a random design decide in most well-specified worlds.
+"medium" lets even a random design decide in most well-specified worlds (R1:
+about 20 of 24 worlds; EIG/cost needs a median of about 50 ticks), and, in R11,
+with reference AALpy runs (see the regime's notes).
 """
 
 from __future__ import annotations
@@ -37,13 +44,23 @@ from typing import Any, Literal
 
 import numpy as np
 
+from probe.determinism import make_rng
 from probe.engine.ir import GridHypothesis, GridValue, HypothesisSet
 from probe.envs.base import RegimeSpec
 from probe.envs.systemlab.actions import CacheActionSpace, RateActionSpace, cache_patterns
 from probe.envs.systemlab.noise import ReportNoise
 from probe.envs.systemlab.services import ServiceSpec
 
-__all__ = ["REGIME_IDS", "RegimeConfig", "TruthDraw", "regime_config"]
+__all__ = [
+    "DEPLOY_TICKS",
+    "R11_VARIANTS",
+    "REGIME_IDS",
+    "RegimeConfig",
+    "TruthDraw",
+    "TruthSampler",
+    "acceptable_verdicts",
+    "regime_config",
+]
 
 Domain = Literal["ratelimit", "cache"]
 
@@ -59,6 +76,30 @@ class TruthDraw:
     """Grid coordinates of the truth in its hypothesis (in-set only)."""
     acceptable_verdicts: tuple[str, ...]
     extra: Mapping[str, Any] = field(default_factory=dict)
+    pre_deploy: Mapping[str, Any] | None = None
+    """Deploy worlds only: ``{"until_clock": at, "acceptable_verdicts": [...]}``. A run
+    whose final clock is ``<= at`` observed only the pre-deploy service, which is a
+    registered grid point, so these verdicts apply instead (:func:`acceptable_verdicts`)."""
+
+
+TruthSampler = Callable[[np.random.Generator, int], TruthDraw]
+"""``sample(rng, seed)``: ``rng`` is the world's truth stream; ``seed`` is used only to
+block-randomise the truth's class (module docstring)."""
+
+
+def acceptable_verdicts(payload: Mapping[str, Any], final_clock: float) -> tuple[str, ...]:
+    """Verdicts scored as correct for a run that ended at ``final_clock`` (evaluator side;
+    ``payload`` is an opened :class:`~probe.truth.SealedTruth` payload).
+
+    A deploy acts on bursts at ticks ``>= at``, and a run that ends at clock ``c`` sent
+    its last burst at a tick ``<= c - 1``. So a run with ``c <= at`` saw only the
+    pre-deploy service, an in-set grid point, and no action available to it could have
+    revealed the deploy: its ``pre_deploy`` verdicts apply. Every other run is scored
+    against the world's ``acceptable_verdicts``."""
+    pre = payload.get("pre_deploy")
+    if pre is not None and final_clock <= pre["until_clock"]:
+        return tuple(pre["acceptable_verdicts"])
+    return tuple(payload["acceptable_verdicts"])
 
 
 @dataclass(frozen=True)
@@ -67,7 +108,7 @@ class RegimeConfig:
     domain: Domain
     actions: RateActionSpace | CacheActionSpace
     hypotheses: HypothesisSet
-    sample_truth: Callable[[np.random.Generator], TruthDraw]
+    sample_truth: TruthSampler
     resettable: bool = False
     """A reset-capable, noise-free input/output oracle is offered (R11 only)."""
     oracle_reset_cost: float = 1.0
@@ -86,6 +127,19 @@ _BETA = (0.0, 0.5, 1.0, 2.0)
 _Q = (0.05, 0.25, 0.5, 0.75, 0.95)
 _AMAX = (2, 4, 6, 8, 12)
 _GAMMA = (0.0, 0.5, 1.0, 2.0)
+
+_WALL_BUDGETS: dict[str, float] = {"small": 60.0, "medium": 150.0, "large": 400.0}
+"""Budgets (ticks) of the wall-cost rate-limiter regimes R1, R3, R5 and R7."""
+
+DEPLOY_TICKS: tuple[int, int] = (max(_WAITS) + 1, int(_WALL_BUDGETS["small"]) - 12)
+"""Inclusive range of the hidden deploy tick in R3 and R7: (33, 48). The first action's
+burst is at a tick ``<= max(waits) = 32``, so every run observes the pre-deploy service;
+and the deploy lies at least 12 ticks inside the smallest budget (wall cost: the clock
+equals the cost spent), so every run that spends its budget observes the post-deploy
+service too. With the earlier range 30-100, about half of R3's deploy worlds (and two
+thirds of R7's) never reached the deploy within the small budget, and a first action
+with a long wait could skip the pre-deploy service entirely: in both cases the observed
+process was exactly an in-set grid point."""
 
 _RATE_TEXT: dict[str, tuple[str, str, str]] = {
     "token_bucket": (
@@ -268,6 +322,19 @@ def _pick(rng: np.random.Generator, options: tuple[Any, ...]) -> Any:
     return options[int(rng.integers(0, len(options)))]
 
 
+def _deploy_tick(rng: np.random.Generator) -> int:
+    lo, hi = DEPLOY_TICKS
+    return int(rng.integers(lo, hi + 1))
+
+
+def _block_pick(regime: str, seed: int, options: tuple[Any, ...]) -> Any:
+    """Block randomisation: every option exactly once per block of ``len(options)``
+    consecutive seeds, in a random order keyed by the block (not the seed)."""
+    block, pos = divmod(seed, len(options))
+    perm = make_rng(0, "systemlab", regime, "truth-block", block).permutation(len(options))
+    return options[int(perm[pos])]
+
+
 def _grid_point(
     rng: np.random.Generator, hyp: GridHypothesis, exclude: Mapping[str, GridValue] | None = None
 ) -> dict[str, GridValue]:
@@ -288,10 +355,10 @@ def _structural(point: Mapping[str, GridValue]) -> dict[str, GridValue]:
 
 
 def _in_set_sampler(
-    hs: HypothesisSet, kinds: tuple[str, ...], noise: ReportNoise
-) -> Callable[[np.random.Generator], TruthDraw]:
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        kind = _pick(rng, kinds)
+    regime: str, hs: HypothesisSet, kinds: tuple[str, ...], noise: ReportNoise
+) -> TruthSampler:
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        kind = _block_pick(regime, seed, kinds)
         hyp = hs.by_id(kind)
         assert isinstance(hyp, GridHypothesis)
         point = _grid_point(rng, hyp)
@@ -332,10 +399,11 @@ _R3_SWITCH = (
 )
 
 
-def _r3_sampler(noise: ReportNoise) -> Callable[[np.random.Generator], TruthDraw]:
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        family = _pick(rng, ("dual", "penalty_box", "deploy"))
+def _r3_sampler(noise: ReportNoise) -> TruthSampler:
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        family = _block_pick("R3", seed, ("dual", "penalty_box", "deploy"))
         extra: dict[str, Any] = {"out_of_set_family": family}
+        pre_deploy: dict[str, Any] | None = None
         if family == "dual":
             tb, fw = _pick(rng, _R3_DUAL)
             svc = ServiceSpec(
@@ -353,11 +421,13 @@ def _r3_sampler(noise: ReportNoise) -> Callable[[np.random.Generator], TruthDraw
             )
         else:
             (k1, p1), (k2, p2) = _pick(rng, _R3_SWITCH)
-            at = int(rng.integers(30, 91))
+            at = _deploy_tick(rng)
             extra["deploy_at"] = at
             svc = ServiceSpec(
                 "deploy", {"at": at}, {"before": ServiceSpec(k1, p1), "after": ServiceSpec(k2, p2)}
             )
+            # Before the deploy the service *is* the registered grid point (k1, p1).
+            pre_deploy = {"until_clock": at, "acceptable_verdicts": [f"hypothesis:{k1}", "none_fits"]}
         return TruthDraw(
             service=svc,
             noise=noise,
@@ -365,18 +435,17 @@ def _r3_sampler(noise: ReportNoise) -> Callable[[np.random.Generator], TruthDraw
             true_params=None,
             acceptable_verdicts=("none_fits",),
             extra=extra,
+            pre_deploy=pre_deploy,
         )
 
     return sample
 
 
-def _r5_sampler(
-    hs: HypothesisSet, noise: ReportNoise
-) -> Callable[[np.random.Generator], TruthDraw]:
-    base = _in_set_sampler(hs, ("token_bucket", "leaky_meter"), noise)
+def _r5_sampler(hs: HypothesisSet, noise: ReportNoise) -> TruthSampler:
+    base = _in_set_sampler("R5", hs, ("token_bucket", "leaky_meter"), noise)
 
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        d = base(rng)
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        d = base(rng, seed)
         return TruthDraw(
             service=d.service,
             noise=d.noise,
@@ -389,28 +458,28 @@ def _r5_sampler(
     return sample
 
 
-def _r7_sampler(
-    hs: HypothesisSet, noise: ReportNoise
-) -> Callable[[np.random.Generator], TruthDraw]:
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        kind = _pick(rng, ("token_bucket", "fixed_window", "sliding_window"))
+def _r7_sampler(hs: HypothesisSet, noise: ReportNoise) -> TruthSampler:
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        kind = _block_pick("R7", seed, ("token_bucket", "fixed_window", "sliding_window"))
         hyp = hs.by_id(kind)
         assert isinstance(hyp, GridHypothesis)
         before = _structural(_grid_point(rng, hyp))
         after = _structural(_grid_point(rng, hyp, exclude=before))
-        at = int(rng.integers(40, 101))
+        at = _deploy_tick(rng)
         svc = ServiceSpec(
             "deploy",
             {"at": at},
             {"before": ServiceSpec(kind, before), "after": ServiceSpec(kind, after)},
         )
+        verdicts = (f"hypothesis:{kind}", "none_fits")
         return TruthDraw(
             service=svc,
             noise=noise,
             true_hypothesis_id=kind,
             true_params=None,
-            acceptable_verdicts=(f"hypothesis:{kind}", "none_fits"),
+            acceptable_verdicts=verdicts,
             extra={"deploy_at": at, "params_before": before, "params_after": after},
+            pre_deploy={"until_clock": at, "acceptable_verdicts": list(verdicts)},
         )
 
     return sample
@@ -439,14 +508,14 @@ def _build_r1() -> RegimeConfig:
             expected="adaptive wins: guarded EIG/cost (P8) reaches the decision criterion at >=15% "
             "lower median cost than the best of P1-P5/P9, with confidently-wrong rate <= best "
             "baseline + 1pp",
-            budgets={"small": 60.0, "medium": 150.0, "large": 400.0},
+            budgets=dict(_WALL_BUDGETS),
             warmup=3,
             in_set=True,
         ),
         domain="ratelimit",
         actions=a,
         hypotheses=hs,
-        sample_truth=_in_set_sampler(hs, _RATE_KINDS, _STD_NOISE),
+        sample_truth=_in_set_sampler("R1", hs, _RATE_KINDS, _STD_NOISE),
     )
 
 
@@ -470,7 +539,7 @@ def _build_r2() -> RegimeConfig:
         domain="ratelimit",
         actions=a,
         hypotheses=hs,
-        sample_truth=_in_set_sampler(hs, _RATE_KINDS, noise),
+        sample_truth=_in_set_sampler("R2", hs, _RATE_KINDS, noise),
     )
 
 
@@ -486,10 +555,13 @@ def _build_r3() -> RegimeConfig:
             "algorithm. None is a registered hypothesis.",
             expected="unguarded adaptive (P6) loses on safety (higher confidently-wrong rate); "
             "guarded P8 ~ baselines; the correct verdict is none_fits",
-            budgets={"small": 60.0, "medium": 150.0, "large": 400.0},
+            budgets=dict(_WALL_BUDGETS),
             warmup=3,
             in_set=False,
-            notes="Sealed payload names the out-of-set family; acceptable verdict: none_fits.",
+            notes="Sealed payload names the out-of-set family; acceptable verdict: none_fits. "
+            "Deploy worlds switch at a hidden tick in 33-48 (DEPLOY_TICKS); a run that ends "
+            "before the deploy saw only the pre-deploy service, a registered grid point, and "
+            "is scored against the payload's pre_deploy verdicts (acceptable_verdicts()).",
         ),
         domain="ratelimit",
         actions=a,
@@ -510,11 +582,12 @@ def _build_r5() -> RegimeConfig:
             "design can tell them apart.",
             expected="all policies tie; 'inconclusive' is the correct verdict; any decision for "
             "one variant is scored a false decision",
-            budgets={"small": 60.0, "medium": 150.0, "large": 400.0},
+            budgets=dict(_WALL_BUDGETS),
             warmup=3,
             in_set=True,
-            notes="The residual is still separable from both; once it is ruled out the "
-            "model-indicator EIG is exactly 0 for every candidate.",
+            notes="The residual is still separable from both. The twins' evidences stay "
+            "exactly equal, so the model-indicator EIG shrinks to 0 for every candidate as "
+            "the residual's weight vanishes (it is never exactly 0 with eps > 0).",
         ),
         domain="ratelimit",
         actions=a,
@@ -524,23 +597,27 @@ def _build_r5() -> RegimeConfig:
 
 
 def _build_r6() -> RegimeConfig:
-    base = _build_r1()
+    a = RateActionSpace(waits=_WAITS, bursts=_BURSTS, cost_model="uniform")
+    hs = _rate_set(a, _RATE_KINDS, _noise_fixed(_STD_NOISE))
     return RegimeConfig(
         spec=RegimeSpec(
             id="R6",
             title="Tiny budget",
-            description="R1's worlds and hypotheses with a budget of at most a handful of "
-            "observations.",
+            description="R1's kind of world (a token bucket, fixed window or sliding window at "
+            "a grid point, 3% status flips) and R1's hypotheses, but every probe is a metered "
+            "call costing one unit whatever its wait, and the budgets allow at most 3, 4 and 5 "
+            "probes, warm-up included.",
             expected="static maximin design (P9) >= adaptive",
-            budgets={"small": 8.0, "medium": 16.0, "large": 30.0},
-            warmup=0,
+            budgets={"small": 3.0, "medium": 4.0, "large": 5.0},
+            warmup=1,
             in_set=True,
-            notes="Run with RunProtocol.max_steps=5 (<= 5 observations, handover H.12).",
+            notes="The budget alone enforces <= 5 observations (handover Part I, H.12); no "
+            "protocol override is needed.",
         ),
-        domain=base.domain,
-        actions=base.actions,
-        hypotheses=base.hypotheses,
-        sample_truth=base.sample_truth,
+        domain="ratelimit",
+        actions=a,
+        hypotheses=hs,
+        sample_truth=_in_set_sampler("R6", hs, _RATE_KINDS, _STD_NOISE),
     )
 
 
@@ -552,13 +629,15 @@ def _build_r7() -> RegimeConfig:
             id="R7",
             title="Nonstationary service (mid-run deploy)",
             description="The planted limiter keeps its algorithm but a deploy at a hidden tick "
-            "(40-100) changes its parameters to another grid point and restarts it.",
+            "(33-48, inside every budget) changes its parameters to another grid point and "
+            "restarts it.",
             expected="stratified >= adaptive",
-            budgets={"small": 60.0, "medium": 150.0, "large": 400.0},
+            budgets=dict(_WALL_BUDGETS),
             warmup=3,
             in_set=True,
             notes="Structurally in the set, parametrically nonstationary: no single grid point "
-            "fits the whole run. Acceptable verdicts: the true algorithm or none_fits.",
+            "fits a run that spans the deploy, and every run that spends its budget does. "
+            "Acceptable verdicts: the true algorithm or none_fits.",
         ),
         domain="ratelimit",
         actions=a,
@@ -572,10 +651,10 @@ def _build_r8() -> RegimeConfig:
     noise = ReportNoise(eps=0.05, glitch=0.25)
     glitch_grid: dict[str, tuple[GridValue, ...]] = {"glitch": (0.02, 0.1, 0.25)}
     hs = _rate_set(a, _RATE_KINDS, _noise_fixed(noise), noise_grid=glitch_grid)
-    in_set = _in_set_sampler(hs, _RATE_KINDS, noise)
+    in_set = _in_set_sampler("R8", hs, _RATE_KINDS, noise)
 
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        d = in_set(rng)
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        d = in_set(rng, seed)
         point = {**dict(d.true_params or {}), "glitch": noise.glitch}
         return TruthDraw(
             service=d.service,
@@ -625,18 +704,23 @@ def _build_r10() -> RegimeConfig:
         domain="ratelimit",
         actions=a,
         hypotheses=hs,
-        sample_truth=_in_set_sampler(hs, _RATE_KINDS, noise),
+        sample_truth=_in_set_sampler("R10", hs, _RATE_KINDS, noise),
     )
+
+
+R11_VARIANTS: tuple[tuple[str, int], ...] = (("mru", 2), ("mru", 3), ("clock", 2))
+"""(policy, size) of the planted R11 caches. Each is a finite-state machine over the
+keys a-d (17, 29 and 105 reachable behavioural states). CLOCK of size 3 (633 states)
+is left out: the reference L* run needs about 3·10^5 oracle steps to learn it."""
 
 
 def _build_r11() -> RegimeConfig:
     noise = ReportNoise(eps=0.0, glitch=0.0)
-    a = CacheActionSpace(patterns=cache_patterns("abcd", 6))
+    a = CacheActionSpace(patterns=cache_patterns("abcd", 6), horizon=60_000)
     hs = _cache_set(a, (1, 2, 3), noise)
 
-    def sample(rng: np.random.Generator) -> TruthDraw:
-        policy = _pick(rng, ("clock", "mru"))
-        size = _pick(rng, (2, 3))
+    def sample(rng: np.random.Generator, seed: int) -> TruthDraw:
+        policy, size = _block_pick("R11", seed, R11_VARIANTS)
         return TruthDraw(
             service=ServiceSpec("cache", {"policy": policy, "size": size}),
             noise=noise,
@@ -650,19 +734,27 @@ def _build_r11() -> RegimeConfig:
         spec=RegimeSpec(
             id="R11",
             title="Deterministic finite-state cache (automata-learning home turf)",
-            description="A noise-free cache of size 2-3 over keys a-d whose eviction policy "
-            "(CLOCK or MRU) is not registered. A reset-capable input/output oracle is offered "
-            "for automata learning (AALpy L*).",
-            expected="AALpy (P11) wins: it learns an exact Mealy machine of the service, while "
-            "the hypothesis-driven policies can at best report none_fits",
-            budgets={"small": 48.0, "medium": 96.0, "large": 192.0},
+            description="A noise-free cache over keys a-d whose eviction policy is not "
+            "registered (MRU of size 2 or 3, or CLOCK of size 2). A reset-capable input/output "
+            "oracle is offered for automata learning (AALpy L*/KV); it is charged 1 per access "
+            "and 1 per reset, the same unit as the probes.",
+            expected="AALpy (P11) wins: within the large budget the reference L* run learns a "
+            "Mealy machine exactly equivalent to every planted service (checked by "
+            "mealy_counterexample), while the hypothesis-driven policies can at best report "
+            "none_fits; with zero noise a registered policy that matches the service on the "
+            "sequences probed so far can also attract confidently wrong decisions",
+            budgets={"small": 6_000.0, "medium": 12_000.0, "large": 48_000.0},
             warmup=1,
             in_set=False,
             notes="Zero noise: a registered policy is eliminated exactly (zero likelihood) at "
-            "its first wrong prediction. Oracle cost: 1 per access, 1 per reset. The "
-            "comparison is on what each method delivers (an exact, verified automaton vs. a "
-            "verdict), reported with costs side by side: L*/KV need thousands of oracle steps "
-            "(MRU) to ~10^5 (CLOCK, size 3), far above the EIG budgets.",
+            "its first wrong prediction, so none_fits is typically reached within tens of "
+            "accesses. Budgets are sized for the automata learner: the reference L* run "
+            "(AALpy StatePrefixEqOracle, 10 walks of length 8 per state) was exact in 8 of 8 "
+            "random seeds per variant, at 4.0-4.7k accesses+resets for MRU-2, 7.7-8.8k for "
+            "MRU-3 and 32-39k for CLOCK-2, so small covers MRU-2, medium MRU-2/3 and large "
+            "every variant (KV with the same equivalence oracle is cheaper but mostly stops "
+            "with a wrong machine). The comparison is on what each method delivers (an exact "
+            "automaton vs. a verdict), with costs side by side.",
         ),
         domain="cache",
         actions=a,

@@ -71,6 +71,14 @@ class GridQuery:
         if self.param not in table:
             return np.full(size, bool(self.missing))
         col = np.asarray(table[self.param])
+        numeric_col = col.dtype.kind in "biuf"
+        if numeric_col == isinstance(self.value, str):
+            # numpy compares "4" with 4 as plain inequality, which would silently answer
+            # the query "no" at every grid point
+            raise TypeError(
+                f"grid query value {self.value!r} does not match the type of parameter "
+                f"{self.param!r} ({'numeric' if numeric_col else 'categorical'})"
+            )
         if self.op == "==":
             return np.asarray(col == self.value, dtype=bool)
         if self.op == "!=":

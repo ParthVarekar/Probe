@@ -3,7 +3,8 @@
 A world is a pure function of ``(regime, seed)``:
 
 * the truth (service spec, noise, true hypothesis) is drawn from
-  ``make_rng(seed, "systemlab", regime, "truth")`` and sealed in a
+  ``make_rng(seed, "systemlab", regime, "truth")``, with its class
+  block-randomised by seed (:mod:`probe.envs.systemlab.regimes`), and sealed in a
   :class:`~probe.truth.SealedTruth` whose salt comes from
   ``make_rng(seed, "systemlab", regime, "salt")``;
 * the environment holds a private, deterministic instance of the service and
@@ -14,9 +15,14 @@ A world is a pure function of ``(regime, seed)``:
 
 Agent-facing surface (:class:`SystemLabEnv`): ``metadata()``, ``candidates()``,
 ``execute()``, ``spent``, ``clock``, ``exhausted``, ``truth_commitment()`` and, in
-reset-capable regimes only, ``reset_oracle()``. None of these returns truth
-fields; metadata and candidates are identical for every seed of a regime, and
-observations differ across seeds only in ``value`` (both are tested).
+reset-capable regimes only, ``reset_oracle()`` (one oracle per world, whose cost is
+counted in ``spent``). None of these returns truth fields; metadata and candidates
+are identical for every seed of a regime, and observations differ across seeds only
+in ``value`` (both are tested).
+
+Evaluator side: the opened payload's ``acceptable_verdicts`` (and, in deploy worlds,
+``pre_deploy``) are resolved for a finished run by
+:func:`probe.envs.systemlab.regimes.acceptable_verdicts`.
 """
 
 from __future__ import annotations
@@ -82,6 +88,7 @@ class SystemLabEnv(Environment):
         self.__noise = noise
         self.__service: RateLimiter | Cache = build_service(service)
         self.__commitment = commit
+        self.__oracle: MealyOracle | None = None
         self._clock = 0
         self._spent = 0.0
         self._step = 0
@@ -156,7 +163,10 @@ class SystemLabEnv(Environment):
 
     @property
     def spent(self) -> float:
-        return self._spent
+        """Cost of executed actions plus, in reset-capable worlds, everything charged by
+        the world's oracle (:meth:`reset_oracle`): one budget for both channels."""
+        oracle = self.__oracle
+        return self._spent + (oracle.cost if oracle is not None else 0.0)
 
     @property
     def clock(self) -> float:
@@ -170,21 +180,29 @@ class SystemLabEnv(Environment):
         return self.__commitment
 
     def reset_oracle(self) -> MealyOracle:
-        """A reset-capable, noise-free input/output oracle on fresh copies of the planted
-        service (automata-learning baseline P11). Only offered by regimes that declare
-        ``resettable`` (R11): elsewhere the service is noisy or nonstationary and a reset
-        would be an unfair extra capability."""
+        """The world's reset-capable, noise-free input/output oracle on fresh copies of the
+        planted service (automata-learning baseline P11). Only offered by regimes that
+        declare ``resettable`` (R11): elsewhere the service is noisy or nonstationary and a
+        reset would be an unfair extra capability.
+
+        There is exactly one oracle per world (every call returns the same object), and
+        its cost is part of :attr:`spent`, so asking again cannot reset the meter."""
         cfg = self._config
         if not cfg.resettable:
             raise PermissionError("this world offers no reset-capable oracle")
-        spec = self.__spec
-        if isinstance(cfg.actions, CacheActionSpace):
-            alphabet: tuple[str, ...] = tuple(cfg.actions.keys())
-        else:
-            alphabet = MealyOracle.RATE_ALPHABET
-        return MealyOracle(
-            lambda: build_service(spec), alphabet, step_cost=1.0, reset_cost=cfg.oracle_reset_cost
-        )
+        if self.__oracle is None:
+            spec = self.__spec
+            if isinstance(cfg.actions, CacheActionSpace):
+                alphabet: tuple[str, ...] = tuple(cfg.actions.keys())
+            else:
+                alphabet = MealyOracle.RATE_ALPHABET
+            self.__oracle = MealyOracle(
+                lambda: build_service(spec),
+                alphabet,
+                step_cost=1.0,
+                reset_cost=cfg.oracle_reset_cost,
+            )
+        return self.__oracle
 
     def __repr__(self) -> str:
         return f"SystemLabEnv(step={self._step}, clock={self._clock}, spent={self._spent})"
@@ -220,7 +238,7 @@ class SystemLabFamily:
         cfg = regime_config(regime)
         if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
             raise ValueError("seed must be a non-negative int")
-        draw: TruthDraw = cfg.sample_truth(make_rng(seed, FAMILY_NAME, regime, "truth"))
+        draw: TruthDraw = cfg.sample_truth(make_rng(seed, FAMILY_NAME, regime, "truth"), seed)
         salt = make_rng(seed, FAMILY_NAME, regime, "salt").bytes(16).hex()
         world_id = f"{FAMILY_NAME}/{regime}/{seed}"
         payload: dict[str, Any] = {
@@ -233,6 +251,8 @@ class SystemLabFamily:
             "acceptable_verdicts": list(draw.acceptable_verdicts),
             "extra": dict(draw.extra),
         }
+        if draw.pre_deploy is not None:
+            payload["pre_deploy"] = dict(draw.pre_deploy)
         if draw.true_hypothesis_id is not None and draw.true_params is not None:
             hyp = cfg.hypotheses.by_id(draw.true_hypothesis_id)
             assert isinstance(hyp, GridHypothesis)

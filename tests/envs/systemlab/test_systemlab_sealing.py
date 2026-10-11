@@ -73,6 +73,8 @@ def _truth_needles(world):
         "acceptable_verdicts",
         "true_grid_index",
         "deploy_at",
+        "pre_deploy",
+        "until_clock",
         "penalty",
         "out_of_set",
         "equivalence_class",
@@ -129,6 +131,25 @@ def test_sealed_truth_contract(regime):
     assert p["acceptable_verdicts"]
     with pytest.raises(TypeError):
         pickle.dumps(truth)
+
+
+def test_reset_oracle_is_one_metered_channel_per_world():
+    """Regression: every reset_oracle() call used to hand out a fresh oracle with a zero
+    cost meter, and oracle use never reached env.spent, so the P11 budget could be
+    bypassed by asking again. Now the world has one oracle and its cost is spent."""
+    env = FAMILY.make_world("R11", 1).env
+    assert env.spent == 0.0
+    oracle = env.reset_oracle()
+    oracle.query("abcab")  # one reset + five accesses
+    assert oracle.cost == 6.0
+    again = env.reset_oracle()
+    assert again is oracle and again.cost == 6.0
+    assert env.spent == 6.0
+    cand = env.candidates()[0]
+    env.execute(cand.action)
+    assert env.spent == 6.0 + cand.cost
+    again.step("a")
+    assert env.spent == 7.0 + cand.cost
 
 
 def test_reset_oracle_only_where_declared():

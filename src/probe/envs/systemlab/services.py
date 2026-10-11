@@ -370,6 +370,24 @@ class Cache:
             return frozenset(self._freq)
         return frozenset(self._order)
 
+    def state_key(self) -> tuple[Any, ...]:
+        """A hashable key of everything the cache's future input/output behaviour
+        depends on (absolute access counters abstracted away): two caches of the same
+        policy and size with equal keys answer every key sequence identically.
+
+        ``lru``/``fifo``: residents in recency/insertion order; ``mru``: the resident
+        set and the most recently used key; ``clock``: frames, reference bits and
+        hand. These four have finitely many keys (finite-state machines). ``lfu``
+        keeps unbounded in-cache counts, so its key space is infinite."""
+        if self.policy == "clock":
+            return ("clock", self.size, tuple(self._frames), tuple(self._ref), self._hand)
+        if self.policy in ("lru", "fifo"):
+            return (self.policy, self.size, tuple(self._order))
+        by_recency = sorted(self._last, key=lambda k: self._last[k])
+        if self.policy == "mru":
+            return ("mru", self.size, tuple(sorted(self._freq)), tuple(by_recency[-1:]))
+        return ("lfu", self.size, tuple((k, self._freq[k]) for k in by_recency))
+
     def clone(self) -> Cache:
         return copy.deepcopy(self)
 
@@ -396,6 +414,13 @@ class ServiceSpec:
         if self.children:
             out["children"] = {k: v.as_dict() for k, v in sorted(self.children.items())}
         return out
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any]) -> ServiceSpec:
+        """Inverse of :meth:`as_dict` (evaluator side: rebuild the planted service from
+        an opened :class:`~probe.truth.SealedTruth` payload)."""
+        children = {k: cls.from_dict(v) for k, v in dict(d.get("children", {})).items()}
+        return cls(str(d["kind"]), dict(d.get("params", {})), children)
 
     def is_cache(self) -> bool:
         return self.kind == "cache"

@@ -16,16 +16,26 @@ Input alphabets:
 The service is held privately and never exposed; only the input/output behaviour
 is observable, as for any black-box client. AALpy is a development dependency, so
 :func:`aalpy_sul` imports it lazily.
+
+Evaluator side (needs the planted service, i.e. an opened sealed truth):
+:func:`mealy_counterexample` decides *exactly* whether a learned Mealy machine is
+equivalent to a planted cache, by breadth-first search over the product of the
+learned machine and the cache's behavioural states (:meth:`Cache.state_key`); it
+returns a shortest distinguishing input word, or ``None``. :func:`reachable_states`
+counts the cache's reachable behavioural states (an upper bound on the size of its
+minimal Mealy machine). Random-walk equivalence oracles, as used inside L*/KV,
+can stop early with a wrong machine; this check cannot.
 """
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Any
 
 from probe.envs.systemlab.services import Cache, RateLimiter
 
-__all__ = ["MealyOracle", "aalpy_sul"]
+__all__ = ["MealyOracle", "aalpy_sul", "mealy_counterexample", "reachable_states"]
 
 
 class MealyOracle:
@@ -103,3 +113,73 @@ def aalpy_sul(oracle: MealyOracle) -> Any:
             return self.inner.step(letter)
 
     return _SystemLabSUL(oracle)
+
+
+def _cache_factory(factory: Callable[[], RateLimiter | Cache]) -> Cache:
+    c = factory()
+    if not isinstance(c, Cache):
+        raise TypeError("exact equivalence checks are implemented for caches only")
+    return c
+
+
+def _out(c: Cache, letter: str) -> str:
+    return "hit" if c.access(letter) else "miss"
+
+
+def reachable_states(
+    factory: Callable[[], RateLimiter | Cache], alphabet: Sequence[str], *, limit: int = 100_000
+) -> int:
+    """Number of behavioural states of the planted cache reachable from its initial
+    state over ``alphabet`` (raises ``RuntimeError`` beyond ``limit``, e.g. for LFU,
+    whose in-cache counts are unbounded)."""
+    c0 = _cache_factory(factory)
+    seen = {c0.state_key()}
+    queue = deque([c0])
+    while queue:
+        c = queue.popleft()
+        for a in alphabet:
+            d = c.clone()
+            d.access(a)
+            k = d.state_key()
+            if k not in seen:
+                if len(seen) >= limit:
+                    raise RuntimeError(f"more than {limit} reachable states")
+                seen.add(k)
+                queue.append(d)
+    return len(seen)
+
+
+def mealy_counterexample(
+    model: Any,
+    factory: Callable[[], RateLimiter | Cache],
+    alphabet: Sequence[str],
+    *,
+    limit: int = 1_000_000,
+) -> list[str] | None:
+    """A shortest input word on which ``model`` and the planted cache disagree, or
+    ``None`` when they are equivalent on every word over ``alphabet``.
+
+    ``model`` is a Mealy machine with AALpy's shape: ``initial_state``, and per state
+    ``transitions[letter]`` and ``output_fun[letter]`` (outputs ``"hit"``/``"miss"``).
+    Exact: the product of the model's states and the cache's behavioural states is
+    finite for LRU, FIFO, MRU and CLOCK and is explored completely (``RuntimeError``
+    beyond ``limit`` product states)."""
+    c0 = _cache_factory(factory)
+    s0 = model.initial_state
+    seen = {(id(s0), c0.state_key())}
+    queue: deque[tuple[Any, Cache, tuple[str, ...]]] = deque([(s0, c0, ())])
+    while queue:
+        s, c, word = queue.popleft()
+        for a in alphabet:
+            d = c.clone()
+            want = _out(d, a)
+            if a not in s.transitions or s.output_fun.get(a) != want:
+                return [*word, a]
+            t = s.transitions[a]
+            k = (id(t), d.state_key())
+            if k not in seen:
+                if len(seen) >= limit:
+                    raise RuntimeError(f"more than {limit} product states")
+                seen.add(k)
+                queue.append((t, d, (*word, a)))
+    return None

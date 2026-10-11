@@ -23,6 +23,7 @@ __all__ = [
 
 _SERIES_DF = 50.0
 _HALF_LOG_2PI = 0.5 * float(np.log(2.0 * np.pi))
+_ROW_SUM_TOL = 1e-9
 
 
 def t_log_normalizer(df: np.ndarray) -> np.ndarray:
@@ -75,7 +76,8 @@ def student_t_entropy(df: np.ndarray, scale: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True)
 class StudentTPredictive:
-    """Location-scale Student-t per design: arrays of shape (n,)."""
+    """Location-scale Student-t per design: arrays of shape (n,). ``df`` may be +inf
+    (the Gaussian limit); NaN and non-finite loc/scale are rejected."""
 
     df: np.ndarray
     loc: np.ndarray
@@ -85,30 +87,39 @@ class StudentTPredictive:
         n = self.loc.shape
         if self.df.shape != n or self.scale.shape != n or self.loc.ndim != 1:
             raise ValueError("df, loc and scale must be 1-D arrays of equal length")
-        if np.any(self.scale <= 0) or np.any(self.df <= 0):
-            raise ValueError("Student-t predictive needs positive df and scale")
+        # NaN compares False with everything, so validate positively: finite loc and
+        # scale, scale > 0, and df > 0 or +inf (the Gaussian limit).
+        if not (np.all(np.isfinite(self.loc)) and np.all(np.isfinite(self.scale))):
+            raise ValueError("Student-t predictive needs finite loc and scale")
+        if not (np.all(self.scale > 0) and np.all(self.df > 0)):
+            raise ValueError("Student-t predictive needs positive df and scale (no NaN)")
 
     @property
     def n(self) -> int:
         return int(self.loc.shape[0])
 
     def logpdf(self, y: np.ndarray) -> np.ndarray:
-        """log density; ``y`` broadcasts against (n,), e.g. shape (n,) or (m, n)."""
+        """log density; ``y`` broadcasts against (n,), e.g. shape (n,) or (m, n).
+        ν = +inf is the Gaussian N(loc, scale²)."""
         z = (np.asarray(y, dtype=np.float64) - self.loc) / self.scale
         nu = self.df
-        return t_log_normalizer(nu) - np.log(self.scale) - 0.5 * (nu + 1.0) * np.log1p(z * z / nu)
+        gauss = np.isinf(nu)
+        nu_f = np.where(gauss, 1.0, nu)
+        kernel = np.where(gauss, -0.5 * z * z, -0.5 * (nu_f + 1.0) * np.log1p(z * z / nu_f))
+        return t_log_normalizer(nu) - np.log(self.scale) + kernel
 
     def entropy(self) -> np.ndarray:
         return student_t_entropy(self.df, self.scale)
 
     def mean(self) -> np.ndarray:
+        """The location (the mean wherever it exists, ν > 1)."""
         return self.loc.copy()
 
     def variance(self) -> np.ndarray:
-        """Infinite where ν ≤ 2."""
-        with np.errstate(divide="ignore"):
-            v = np.where(self.df > 2, self.scale**2 * self.df / (self.df - 2.0), np.inf)
-        return v
+        """scale²·ν/(ν − 2); infinite where ν ≤ 2, scale² in the Gaussian limit ν = ∞."""
+        nu = self.df
+        ratio = np.where(np.isinf(nu), 1.0, nu / np.where(nu > 2.0, nu - 2.0, 1.0))
+        return np.where(nu > 2.0, self.scale**2 * ratio, np.inf)
 
     def take(self, idx: np.ndarray | list[int]) -> StudentTPredictive:
         i = np.asarray(idx)
@@ -117,15 +128,18 @@ class StudentTPredictive:
 
 @dataclass(frozen=True)
 class DiscretePredictive:
-    """PMF per design over support 0..S-1: ``probs`` has shape (n, S), rows sum to 1."""
+    """PMF per design over support 0..S-1: ``probs`` has shape (n, S), rows sum to 1
+    within 1e-9 (absolute; the information kernels treat each row as exact)."""
 
     probs: np.ndarray
 
     def __post_init__(self) -> None:
         if self.probs.ndim != 2:
             raise ValueError("probs must be (n, S)")
-        if np.any(self.probs < -1e-15) or not np.allclose(self.probs.sum(axis=1), 1.0, atol=1e-9):
+        if not np.all(np.isfinite(self.probs)) or np.any(self.probs < -1e-15):
             raise ValueError("each row of probs must be a probability vector")
+        if np.any(np.abs(self.probs.sum(axis=1) - 1.0) > _ROW_SUM_TOL):
+            raise ValueError("each row of probs must sum to 1 (within 1e-9)")
 
     @property
     def n(self) -> int:
@@ -140,15 +154,18 @@ class DiscretePredictive:
 
     def entropy(self) -> np.ndarray:
         p = np.clip(self.probs, 0.0, 1.0)
-        return -np.sum(special.xlogy(p, p), axis=1)
+        return 0.0 - np.sum(special.xlogy(p, p), axis=1)  # 0.0 − (+0) is +0, never −0
 
     def mean(self) -> np.ndarray:
-        return self.probs @ np.arange(self.probs.shape[1], dtype=np.float64)
+        # row sums rather than a BLAS matrix-vector product, whose result for a row can
+        # depend on its position in the batch
+        return np.sum(self.probs * np.arange(self.probs.shape[1], dtype=np.float64), axis=1)
 
     def variance(self) -> np.ndarray:
+        """Σ_y p(y)(y − mean)², centred so it never cancels below zero."""
         s = np.arange(self.probs.shape[1], dtype=np.float64)
-        m = self.probs @ s
-        return self.probs @ (s * s) - m * m
+        dev = s[None, :] - self.mean()[:, None]
+        return np.sum(self.probs * dev * dev, axis=1)
 
     def take(self, idx: np.ndarray | list[int]) -> DiscretePredictive:
         return DiscretePredictive(self.probs[np.asarray(idx)])

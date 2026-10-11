@@ -40,7 +40,9 @@ def test_binomial_posterior_and_evidence_match_enumeration():
         total += m.log_predictive(r, y)
         m.update(r, y)
     p = np.asarray(P_GRID)
-    ll = np.array([sum(stats.binom.logpmf(y, r["n"], pi) for r, y in zip(recs, ys)) for pi in p])
+    ll = np.array(
+        [sum(stats.binom.logpmf(y, r["n"], pi) for r, y in zip(recs, ys, strict=True)) for pi in p]
+    )
     w = np.exp(ll - special.logsumexp(ll))
     np.testing.assert_allclose(m.grid_weights(), w, rtol=1e-10, atol=1e-15)
     expected_ev = float(special.logsumexp(ll) - math.log(len(p)))

@@ -46,6 +46,14 @@ __all__ = ["LinearQueryKernel", "NIGModel", "NIGPosterior", "NIGSamples"]
 
 _LOG_2PI_E = math.log(2.0 * math.pi * math.e)
 _LOG_2PI = math.log(2.0 * math.pi)
+_EPS = float(np.finfo(np.float64).eps)
+
+
+def _rows_dot(x: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """x @ v as a plain row reduction: a BLAS matrix-vector product may round a row
+    differently depending on its position in ``x``, which would make a candidate's
+    predictive (and hence its EIG) depend on the other candidates in the batch."""
+    return np.sum(x * v, axis=1)
 
 
 @dataclass(frozen=True)
@@ -110,12 +118,17 @@ class LinearQueryKernel:
         """P(q | D ∪ {(x_cand, y)}); ``y`` has shape (P, Q) and ``cand`` (P,)
         indexes the candidate of each row."""
         y = np.asarray(y, dtype=np.float64)
+        return self.prob_after_resid(y - self.x_mu[np.asarray(cand)][:, None], cand)
+
+    def prob_after_resid(self, r: np.ndarray, cand: np.ndarray) -> np.ndarray:
+        """:meth:`prob_after` in terms of the residual r = y − xᵀμ (P, Q), which the
+        quadrature forms exactly from anchored coordinates."""
+        r = np.asarray(r, dtype=np.float64)
         if self.deterministic:
-            return np.full(y.shape, self.prior_prob)
+            return np.full(r.shape, self.prior_prob)
         idx = np.asarray(cand)[:, None]
         cc = self.cc[idx]
         csx = self.c_sx[idx]
-        r = y - self.x_mu[idx]
         mean = self.c_mu + csx * r / cc
         var_unit = np.maximum(self.c_sc - csx * csx / cc, 0.0)
         a1 = self.a + 0.5
@@ -127,15 +140,6 @@ class LinearQueryKernel:
         p = special.stdtr(2.0 * a1, t)
         # zero posterior spread: the answer is a step function of y
         return np.where(scale > 0.0, p, (diff > 0.0).astype(np.float64))
-
-    def transition_widths(self) -> np.ndarray:
-        """Approximate y-width over which P(q | D, y) switches from 0 to 1 per
-        candidate (posterior sd of cᵀβ divided by |d cᵀμ'/dy|; inf if flat)."""
-        var_unit = np.maximum(self.c_sc - self.c_sx * self.c_sx / self.cc, 0.0)
-        sd = np.sqrt(self.b / self.a * var_unit)
-        slope = np.abs(self.c_sx) / self.cc
-        with np.errstate(divide="ignore", invalid="ignore"):
-            return np.where(slope > 0.0, sd / np.where(slope > 0.0, slope, 1.0), np.inf)
 
     def transition_points(self) -> np.ndarray:
         """y per candidate at which the post-update mean cᵀμ' crosses τ (NaN when
@@ -193,7 +197,7 @@ class NIGModel:
         n = x.shape[0]
         return StudentTPredictive(
             df=np.full(n, 2.0 * self._a),
-            loc=x @ self._mu,
+            loc=_rows_dot(x, self._mu),
             scale=np.sqrt(self._b / self._a * (1.0 + self._quad(x))),
         )
 
@@ -229,19 +233,45 @@ class NIGModel:
         return self._log_evidence
 
     def max_log_likelihood(self) -> float:
-        """sup over (β, σ²) of Σ log N(yᵢ | xᵢᵀβ, σ²): the Gaussian MLE."""
+        """sup over (β, σ²) of Σ log N(yᵢ | xᵢᵀβ, σ²) = −(n/2)(log(2π·RSS/n) + 1),
+        the Gaussian MLE, with RSS the least-squares residual sum of squares.
+
+        It is +inf when the model interpolates the data (σ̂² → 0): n ≤ rank, or a
+        residual within the rounding floor of a backward-stable least-squares solve,
+        ρ = 32(n + p)·ε·(1 + κ)·(‖y‖ + ‖X‖_F‖β̂‖) with κ the condition number of the
+        retained singular values. Beyond the floor, RSS is replaced by its lower bound
+        (‖r̂‖ − ρ)², so the value never falls below the true supremum (the conservative
+        side for universal-inference denominators). The floor scales with the data's
+        own rounding error, so an ordinary fit to data with a large mean and small
+        noise is never mistaken for an exact one."""
         n = self.n_obs
         if n == 0:
             return 0.0
         x = np.vstack(self._xs)
         y = np.asarray(self._ys)
+        p = x.shape[1]
+        sv = np.linalg.svd(x, compute_uv=False)
+        tol = (float(sv[0]) if sv.size else 0.0) * max(n, p) * _EPS  # numpy's rank rule
+        kept = sv[sv > tol]
+        rank = int(kept.size)
+        if n <= rank:
+            return math.inf
         beta, *_ = np.linalg.lstsq(x, y, rcond=None)
-        rss = float(np.sum((y - x @ beta) ** 2))
-        rank = int(np.linalg.matrix_rank(x))
-        scale = max(float(np.sum(y * y)), 1.0)
-        if n <= rank or rss <= 1e-12 * scale:
+        resid = float(np.linalg.norm(y - x @ beta))
+        kappa = float(kept[0] / kept[-1]) if rank else 1.0
+        floor = (
+            32.0
+            * (n + p)
+            * _EPS
+            * (1.0 + kappa)
+            * (float(np.linalg.norm(y)) + float(np.linalg.norm(x)) * float(np.linalg.norm(beta)))
+        )
+        if resid <= floor:
             return math.inf  # model interpolates the data: σ̂² → 0, likelihood unbounded
-        return -0.5 * n * (math.log(2.0 * math.pi * rss / n) + 1.0)
+        rss_lo = (resid - floor) ** 2
+        if rss_lo <= 0.0 or not math.isfinite(rss_lo):
+            return math.inf
+        return -0.5 * n * (math.log(2.0 * math.pi * rss_lo / n) + 1.0)
 
     # -- information gain ----------------------------------------------------
     def parameter_eig(self, records: Sequence[Record]) -> np.ndarray:
@@ -273,9 +303,9 @@ class NIGModel:
             prior = float((c_mu < tau) if below else (c_mu > tau))
         return LinearQueryKernel(
             prior_prob=prior,
-            x_mu=x @ self._mu,
+            x_mu=_rows_dot(x, self._mu),
             cc=1.0 + self._quad(x),
-            c_sx=x @ sc,
+            c_sx=_rows_dot(x, sc),
             c_mu=c_mu,
             c_sc=c_sc,
             a=self._a,

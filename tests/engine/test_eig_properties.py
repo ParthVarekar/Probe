@@ -29,10 +29,13 @@ def weight_vectors(draw, k):
 
 @st.composite
 def t_mixtures(draw, max_k=5, max_n=3, span=1e3):
+    """Student-t mixtures with ν log-uniform in [0.5, 1e6] (heavy tails through the
+    Gaussian limit), locations within ±span and scales in [e^−6, e^6]."""
     k = draw(st.integers(2, max_k))
     n = draw(st.integers(1, max_n))
     w = draw(weight_vectors(k))
-    df = draw(arrays(np.float64, (k, n), elements=st.floats(0.5, 300.0, **_f)))
+    log_df = draw(arrays(np.float64, (k, n), elements=st.floats(math.log(0.5), math.log(1e6))))
+    df = np.exp(log_df)
     loc = draw(arrays(np.float64, (k, n), elements=st.floats(-span, span, **_f)))
     log_s = draw(arrays(np.float64, (k, n), elements=st.floats(-6.0, 6.0, **_f)))
     preds = [StudentTPredictive(df[i], loc[i], np.exp(log_s[i])) for i in range(k)]
@@ -138,7 +141,7 @@ def test_student_t_eig_matches_independent_quadrature(case):
         [p.loc[0] for p in preds],
         [p.scale[0] for p in preds],
     )
-    assert abs(res.raw[0] - ref) <= res.error[0] + 1e-10, (res.raw[0], ref, res.error[0])
+    assert abs(res.raw[0] - ref) <= res.error[0] + 1e-12, (res.raw[0], ref, res.error[0])
 
 
 # --------------------------------------------------------------------------- engine fuzzing

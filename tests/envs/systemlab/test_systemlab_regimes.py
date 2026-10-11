@@ -6,8 +6,16 @@ import pytest
 from systemlab_ref import RefPosterior, run_policy
 
 from probe.engine.ir import GridHypothesis, HypothesisSet
-from probe.engine.mechanisms import registered_mechanisms
-from probe.envs.systemlab import FAMILY, REGIME_IDS
+from probe.engine.mechanisms import get_mechanism, registered_mechanisms
+from probe.envs.systemlab import (
+    DEPLOY_TICKS,
+    FAMILY,
+    R11_VARIANTS,
+    REGIME_IDS,
+    ServiceSpec,
+    acceptable_verdicts,
+    build_service,
+)
 from probe.envs.systemlab.regimes import regime_config
 from probe.truth import EvaluatorKey
 
@@ -53,9 +61,15 @@ def test_in_set_truth_is_a_grid_point_with_declared_noise(regime):
         if regime == "R7":  # nonstationary: both segments are grid points, no single one
             assert "true_params" not in p
             assert p["acceptable_verdicts"] == [f"hypothesis:{tid}", "none_fits"]
-            assert 40 <= p["extra"]["deploy_at"] <= 100
+            at = p["extra"]["deploy_at"]
+            assert DEPLOY_TICKS[0] <= at <= DEPLOY_TICKS[1]
+            assert p["pre_deploy"] == {
+                "until_clock": at,
+                "acceptable_verdicts": [f"hypothesis:{tid}", "none_fits"],
+            }
             assert p["extra"]["params_before"] != p["extra"]["params_after"]
             continue
+        assert "pre_deploy" not in p
         table = hyp.grid_table()
         gi = p["true_grid_index"]
         for k, v in p["true_params"].items():
@@ -219,3 +233,152 @@ def test_r3_residual_can_detect_none_fits_with_a_spread_design():
         )
         leads += out.leader == "residual"
     assert leads >= n // 3
+
+
+def _truth_class(regime, world):
+    p = _payload(world)
+    if regime == "R3":
+        return p["extra"]["out_of_set_family"]
+    if regime == "R11":
+        return (p["service"]["params"]["policy"], p["service"]["params"]["size"])
+    return world.truth.true_hypothesis_id(KEY)
+
+
+@pytest.mark.parametrize("regime", REGIME_IDS)
+def test_truth_classes_are_block_randomised(regime):
+    """Every class appears exactly once per block of len(classes) consecutive seeds, in
+    an order that differs between blocks."""
+    hs = FAMILY.hypothesis_set(regime)
+    if regime == "R3":
+        classes = {"dual", "penalty_box", "deploy"}
+    elif regime == "R11":
+        classes = set(R11_VARIANTS)
+    elif regime == "R5":
+        classes = {"token_bucket", "leaky_meter"}
+    else:
+        classes = {h.id for h in hs.hypotheses if not h.is_residual}
+    k = len(classes)
+    orders = set()
+    for block in range(8):
+        got = [_truth_class(regime, FAMILY.make_world(regime, block * k + i)) for i in range(k)]
+        assert set(got) == classes and len(got) == k
+        orders.add(tuple(got))
+    assert len(orders) > 1
+
+
+def test_r6_budget_alone_allows_at_most_five_observations():
+    spec = FAMILY.regimes()["R6"]
+    env = FAMILY.make_world("R6", 0).env
+    cheapest = min(c.cost for c in env.candidates())
+    assert spec.budgets["large"] / cheapest <= 5
+    assert spec.budgets["small"] / cheapest >= 3
+    assert spec.warmup <= spec.budgets["small"] / cheapest
+    assert FAMILY.hypothesis_set("R6") == FAMILY.hypothesis_set("R1")
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])  # one block: every R11 variant once
+def test_r11_every_registered_policy_is_refutable(seed):
+    """'none fits' is reachable in R11: a fixed design cycling through the patterns
+    refutes every registered policy exactly (zero likelihood), while the residual
+    keeps finite evidence and ends with all the posterior mass."""
+    world = FAMILY.make_world("R11", seed)
+    env = world.env
+    post = RefPosterior(FAMILY.hypothesis_set("R11"))
+    actions = [c.action for c in env.candidates()]
+    for _ in range(3):
+        for a in actions:
+            o = env.execute(a)
+            post.update(o.record, int(o.value))
+    ev = {m.id: m.log_evidence for m in post.models}
+    assert np.isfinite(ev.pop("residual"))
+    assert all(np.isneginf(v) for v in ev.values()), ev
+    assert post.post()[post.ids.index("residual")] == 1.0
+
+
+def _deploy_worlds(regime, n_seeds):
+    for seed in range(n_seeds):
+        world = FAMILY.make_world(regime, seed)
+        p = _payload(world)
+        if p["service"]["kind"] == "deploy":
+            yield seed, world, p
+
+
+@pytest.mark.parametrize("regime", ["R3", "R7"])
+def test_every_deploy_falls_inside_every_budget(regime):
+    """The hidden deploy comes after the first action's burst (so every run observes the
+    pre-deploy service) and well inside the smallest budget (wall cost: clock == spent), so
+    a run that spends any budget tier observes the post-deploy service too. Regression:
+    deploy ticks used to be drawn up to 90 (R3) and 100 (R7), past the small budget of 60,
+    where the observed process was exactly an in-set grid point."""
+    cfg = regime_config(regime)
+    spec = cfg.spec
+    first_burst_max = max(cfg.actions.waits)  # type: ignore[union-attr]
+    assert cfg.actions.cost_model == "wall"  # type: ignore[union-attr]
+    n = 0
+    for _, _, p in _deploy_worlds(regime, 60):
+        at = p["service"]["params"]["at"]
+        assert at == p["extra"]["deploy_at"] == p["pre_deploy"]["until_clock"]
+        assert first_burst_max < at
+        assert at + 12 <= min(spec.budgets.values())
+        n += 1
+    assert n >= 20
+
+
+def _hyp_index(hs, kind, params):
+    """The grid point of hypothesis ``kind`` equal to a service's parameters (a spec
+    without ``phase`` has phase 0, as in ``build_service``)."""
+    h = hs.by_id(kind)
+    table = h.grid_table()
+    want = {k: params.get(k, 0 if k == "phase" else None) for k in h.params}
+    idx = [i for i in range(h.grid_size()) if all(table[k][i].item() == want[k] for k in want)]
+    assert len(idx) == 1, (kind, params)
+    return h, idx[0]
+
+
+@pytest.mark.parametrize("regime", ["R3", "R7"])
+def test_pre_deploy_verdicts_are_exactly_justified(regime):
+    """A run that ends at clock <= deploy tick saw only the pre-deploy service, and that
+    service is *exactly* a registered grid point (same noise-free counts along the path,
+    hence the same law of every report): so its algorithm is an acceptable verdict then,
+    and only then."""
+    hs = FAMILY.hypothesis_set(regime)
+    s = hs.outcome.max_count + 1
+    checked = 0
+    for seed, world, p in _deploy_worlds(regime, 24):
+        before = ServiceSpec.from_dict(p["service"]["children"]["before"])
+        h, gi = _hyp_index(hs, before.kind, before.params)
+        mech = get_mechanism(h.mechanism, s)
+        params = {k: v[gi : gi + 1] for k, v in h.grid_table().items()}
+        state = mech.initial_state(params)
+        planted = build_service(ServiceSpec.from_dict(p["service"]))
+        env = world.env
+        at = p["pre_deploy"]["until_clock"]
+        rng = np.random.default_rng(seed)
+        while True:
+            cands = [c for c in env.candidates() if env.clock + c.record["wait"] + 1 <= at]
+            if not cands:
+                break
+            c = cands[int(rng.integers(len(cands)))]
+            obs = env.execute(c.action)
+            assert obs.meta["clock_burst"] < at
+            k = planted.burst(obs.meta["clock_burst"], int(c.record["burst"]))
+            assert mech.noiseless_counts(state, params, obs.record)[0] == k
+            state = mech.advance(state, params, obs.record)
+        assert env.clock <= at
+        verdicts = acceptable_verdicts(p, env.clock)
+        assert f"hypothesis:{before.kind}" in verdicts
+        assert acceptable_verdicts(p, at + 1) == tuple(p["acceptable_verdicts"])
+        if regime == "R3":
+            assert acceptable_verdicts(p, at + 1) == ("none_fits",)
+        checked += 1
+    assert checked >= 6
+
+
+def test_acceptable_verdicts_without_a_deploy_ignore_the_clock():
+    for regime in ("R1", "R3", "R5", "R11"):
+        for seed in range(6):
+            p = _payload(FAMILY.make_world(regime, seed))
+            if "pre_deploy" in p:
+                continue
+            for clock in (0, 10, 10_000):
+                assert acceptable_verdicts(p, clock) == tuple(p["acceptable_verdicts"])

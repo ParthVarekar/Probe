@@ -14,7 +14,18 @@ from probe.envs.systemlab.mechanisms import (
     CacheMechanism,
     ReuseMechanism,
 )
-from probe.envs.systemlab.services import Cache, RateLimiter, ServiceSpec, build_service
+from probe.envs.systemlab.services import (
+    Cache,
+    DeployService,
+    DualLimiter,
+    FixedWindow,
+    PenaltyBox,
+    RateLimiter,
+    ServiceSpec,
+    SlidingWindow,
+    TokenBucket,
+    build_service,
+)
 
 
 def _state_equal(a, b):
@@ -72,8 +83,9 @@ def test_contract_on_random_paths(regime):
             new = mech.advance(state, params, rec)
             _state_equal(state, before)  # advance is pure
             _state_equal(new, mech.advance(state, params, rec))
-            for arr in new.values():
+            for k, arr in new.items():
                 assert arr.shape[0] == g
+                assert not np.shares_memory(arr, state[k])  # no aliasing of the old state
             state = new
 
 
@@ -263,3 +275,66 @@ def test_cache_record_validation():
             mech.predict(st, params, {"keys": bad, "clock": 0})
     with pytest.raises(ValueError):
         mech.initial_state({"policy": np.asarray(["random"]), "size": np.asarray([2])})
+
+
+@pytest.mark.parametrize("kind", ["token_bucket", "leaky_meter", "fixed_window", "sliding_window"])
+def test_empty_burst_advances_without_aliasing(kind):
+    """Regression: the leaky meter returned the old state's ``tat`` array for an empty
+    burst, so the new state aliased the old one."""
+    regime = "R5" if kind == "leaky_meter" else "R1"
+    h = FAMILY.hypothesis_set(regime).by_id(kind)
+    assert isinstance(h, GridHypothesis)
+    mech = get_mechanism(h.mechanism, 13)
+    params = h.grid_table()
+    st = mech.initial_state(params)
+    new = mech.advance(st, params, {"wait": 3, "burst": 0, "clock": 0})
+    for k, arr in new.items():
+        assert not np.shares_memory(arr, st[k]), k
+    np.testing.assert_array_equal(mech.noiseless_counts(new, params, {"wait": 0, "burst": 0, "clock": 4}), 0)
+
+
+def _trace(svc: RateLimiter, steps):
+    return [svc.burst(t, n) for t, n in steps]
+
+
+def test_dual_limiter_admits_only_what_both_admit():
+    # TB(3, 2) and FW(4 per 10): t=0 the bucket binds (3); t=4 the bucket has 2 tokens
+    # but the window has 1 slot left; t=10 a new window, the bucket binds again (3).
+    steps = [(0, 5), (4, 5), (10, 5)]
+    dual = DualLimiter(TokenBucket(3, 2), FixedWindow(4, 10))
+    assert _trace(dual, steps) == [3, 1, 3]
+    assert _trace(TokenBucket(3, 2), steps) == [3, 2, 3]
+    assert _trace(FixedWindow(4, 10), steps) == [4, 0, 4]
+    spec = ServiceSpec(
+        "dual",
+        {},
+        {
+            "first": ServiceSpec("token_bucket", {"capacity": 3, "period": 2}),
+            "second": ServiceSpec("fixed_window", {"limit": 4, "window": 10}),
+        },
+    )
+    assert _trace(build_service(spec), steps) == [3, 1, 3]  # type: ignore[arg-type]
+
+
+def test_penalty_box_blocks_after_an_inner_rejection_without_extending():
+    # TB(2, 3) with a 5-tick penalty. t=0: 2 admitted, the 3rd is rejected -> blocked
+    # until 5. t=4: blocked (the bucket alone would admit). t=5: free again. t=6: 1 admitted,
+    # 1 rejected -> blocked until 11. t=10: blocked; t=11: admitted.
+    steps = [(0, 3), (4, 1), (5, 1), (6, 2), (10, 1), (11, 1)]
+    assert _trace(PenaltyBox(TokenBucket(2, 3), 5), steps) == [2, 0, 1, 1, 0, 1]
+    assert _trace(TokenBucket(2, 3), steps) == [2, 1, 0, 1, 1, 0]  # the bare bucket differs
+    # Requests during the penalty do not extend it.
+    box = PenaltyBox(TokenBucket(1, 1), 3)
+    assert _trace(box, [(0, 2), (1, 1), (2, 1), (3, 1)]) == [1, 0, 0, 1]
+
+
+def test_deploy_switches_to_a_fresh_service_at_the_deploy_tick():
+    # FW(2 per 8) until tick 10 (exclusive), then a fresh SW(3 per 4).
+    steps = [(0, 3), (9, 3), (10, 5), (12, 5), (14, 5)]
+    svc = DeployService(FixedWindow(2, 8), SlidingWindow(3, 4), at=10)
+    assert _trace(svc, steps) == [2, 2, 3, 0, 3]
+    # A burst one tick before the deploy is served by the old service.
+    svc = DeployService(TokenBucket(1, 100), TokenBucket(5, 1), at=10)
+    assert _trace(svc, [(0, 5), (9, 5), (10, 5)]) == [1, 0, 5]
+    with pytest.raises(ValueError):
+        DeployService(TokenBucket(1, 1), TokenBucket(1, 1), at=-1)

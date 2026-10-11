@@ -260,7 +260,7 @@ class LeakyMeterMechanism(_RateMechanism):
         cap = _int_col(params, "capacity")
         per = _int_col(params, "period")
         tau = (cap - 1) * per
-        tat = state["tat"]
+        tat = state["tat"].copy()  # never hand the old state's array to the new state
         k = np.zeros(cap.shape[0], dtype=np.int64)
         for _ in range(n):
             ok = tat - t <= tau

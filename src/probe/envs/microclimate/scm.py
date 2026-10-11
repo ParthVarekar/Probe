@@ -90,7 +90,7 @@ from .records import SHIELDS, design_records
 from .scenarios import RegimeConfig
 from .solar import GRID_STEP_MIN, SolarDay, lagged_forcing, solar_day
 
-__all__ = ["FAMILY_KEY", "HiddenWorld", "Measurement"]
+__all__ = ["FAMILY_KEY", "HiddenWorld", "Measurement", "cutout_probability"]
 
 FAMILY_KEY = "microclimate"
 QUANTUM_C = 0.05
@@ -146,6 +146,18 @@ def _r(a: np.ndarray, decimals: int = 12) -> np.ndarray:
 
 def _quantize(x: float) -> float:
     return round(x / QUANTUM_C) * QUANTUM_C
+
+
+def cutout_probability(t_raw: float, cutout_c: float) -> float:
+    """MNAR overheating cut-out probability 0.9·logistic((t_raw − cutout)/0.5),
+    evaluated without overflow: heavy-tailed noise (R8, Student-t) can put a raw
+    reading hundreds of degrees below the cut-out, where ``exp(-z)`` would raise
+    ``OverflowError``."""
+    z = (t_raw - cutout_c) / CUTOUT_WIDTH_C
+    if z >= 0.0:
+        return CUTOUT_MAX_P / (1.0 + math.exp(-z))
+    e = math.exp(z)
+    return CUTOUT_MAX_P * e / (1.0 + e)
 
 
 class HiddenWorld:
@@ -459,7 +471,7 @@ class HiddenWorld:
         base = self.synoptic(minute)
         site_raw = base + self.expected(site_index, shield, minute, record) + noise
         ref_raw = base + cfg.sd_ref * float(z[2])
-        p_cut = CUTOUT_MAX_P / (1.0 + math.exp(-(site_raw - cfg.cutout_c) / CUTOUT_WIDTH_C))
+        p_cut = cutout_probability(site_raw, cfg.cutout_c)
         if u[1] < p_cut:
             return None, "missing", ("overheat_cutout",)
         if u[0] < cfg.mar_rate:

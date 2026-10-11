@@ -161,7 +161,7 @@ def test_candidates_and_records(regime):
 
 
 def test_costs_follow_the_cost_model():
-    for regime, model in (("R1", "wall"), ("R2", "uniform")):
+    for regime, model in (("R1", "wall"), ("R2", "uniform"), ("R6", "uniform")):
         env = FAMILY.make_world(regime, 0).env
         for c in env.candidates():
             want = c.record["wait"] + 1 if model == "wall" else 1

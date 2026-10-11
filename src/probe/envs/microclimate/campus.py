@@ -62,9 +62,9 @@ class CampusLayout:
 
 
 LAYOUTS: dict[str, CampusLayout] = {
-    # Heterogeneous walking costs (1 to ~20 min): clustered buildings on a large campus.
+    # Heterogeneous walking costs (1 to ~10-20 min): clustered buildings on a large campus.
     "spread": CampusLayout("spread", 1200.0, 800.0, 5, 70.0, 1.0),
-    # Near-uniform costs (1 to ~4 min): one compact quad.
+    # Near-uniform costs (1 to 5 min): one compact quad.
     "compact": CampusLayout("compact", 240.0, 160.0, 3, 30.0, 1.0),
     # Expensive moves (>= 3 min each): tiny-budget regime.
     "sparse": CampusLayout("sparse", 1600.0, 1100.0, 6, 60.0, 3.0),

@@ -83,7 +83,18 @@ def _assert_uniformish(pvals):
 
 @pytest.mark.parametrize(
     ("regime", "seed"),
-    [("R1", 0), ("R1", 1), ("R1", 2), ("R1", 4), ("R8", 0), ("R8", 3), ("R10", 2)],
+    [
+        ("R1", 0),
+        ("R1", 1),
+        ("R1", 2),
+        ("R1", 4),
+        ("R2", 2),
+        ("R5", 1),
+        ("R6", 0),
+        ("R8", 0),
+        ("R8", 3),
+        ("R10", 2),
+    ],
 )
 def test_planted_world_matches_true_grid_point(regime, seed):
     world = FAMILY.make_world(regime, seed)

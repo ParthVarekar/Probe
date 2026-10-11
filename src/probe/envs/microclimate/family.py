@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import numpy as np
+
 from probe.determinism import make_rng
 from probe.engine.ir import HypothesisSet
 from probe.envs.base import RegimeSpec, World
@@ -54,7 +56,10 @@ class MicroclimateFamily:
 
     def make_world(self, regime: str, seed: int) -> World:
         cfg = self.regime_config(regime)
-        if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        if isinstance(seed, bool | np.bool_) or not isinstance(seed, int | np.integer):
+            raise ValueError(f"seed must be a non-negative int, got {seed!r}")
+        seed = int(seed)  # numpy integers (e.g. from SeedSequence) give the same world
+        if seed < 0:
             raise ValueError(f"seed must be a non-negative int, got {seed!r}")
         hset = build_hypothesis_set(cfg.hypothesis_ids)
         solar = solar_day()
