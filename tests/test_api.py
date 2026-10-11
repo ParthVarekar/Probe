@@ -85,3 +85,21 @@ def test_csv_import_is_l1_and_ledgered(tmp_path):
     assert body["claim_ceiling"] == "L1" and body["origin"] == "imported"
     ev = c.get(f"/api/runs/{body['experiment_id']}/events").json()
     assert [e["type"] for e in ev] == ["import_raw", "import_analysis"]
+
+
+def test_compare_runs_diverge_after_shared_warmup(tmp_path):
+    c = _client(tmp_path)
+    ids = []
+    for pol in ("P8", "P1"):
+        r = c.post("/api/runs", json={"family": "systemlab", "regime": "R1", "seed": 2,
+                                      "policy": pol, "budget": "medium"}).json()
+        ids.append(r["experiment_id"])
+    for exp in ids:
+        for _ in range(1200):
+            if c.get(f"/api/runs/{exp}/evaluation").status_code == 200:
+                break
+            time.sleep(0.1)
+    d = c.get("/api/compare", params={"a": ids[0], "b": ids[1]}).json()
+    warm = sum(1 for s in d["steps"] if s["a"] and s["a"]["mode"] == "warmup")
+    assert d["first_divergence"] is None or d["first_divergence"] >= warm
+    assert all(s["same_decision"] for s in d["steps"][:warm])

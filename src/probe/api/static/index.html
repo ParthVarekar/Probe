@@ -80,6 +80,13 @@ a{color:var(--acc)}
       <div id="importres" class="exp"></div>
     </section>
     <section style="margin-top:12px">
+      <h2>Compare two runs</h2>
+      <label for="cmpa">Run A</label><select id="cmpa"></select>
+      <label for="cmpb">Run B</label><select id="cmpb"></select>
+      <button class="secondary" id="cmpbtn">Diff decisions</button>
+      <div id="cmpres" class="exp"></div>
+    </section>
+    <section style="margin-top:12px">
       <h2>Benchmarks</h2>
       <ul class="runs" id="benches"></ul>
     </section>
@@ -133,6 +140,7 @@ async function init(){
   $('family').onchange = fillRegimes; $('regime').onchange = showExpected;
   fillRegimes(); refreshRuns(); refreshBenches();
   $('importbtn').onclick = importCsv;
+  $('cmpbtn').onclick = compareRuns;
   $('run').onclick = startRun;
 }
 function fillRegimes(){
@@ -160,6 +168,15 @@ async function refreshBenches(){
   const bs = await api('/api/benchmarks');
   $('benches').innerHTML = bs.map(b=>`<li><a href="/api/benchmarks/${encodeURIComponent(b.name)}/map" target="_blank">${esc(b.name)}</a> · ${b.meta.seeds} seeds · gate <b class="${b.gate.go?'ok':'bad'}">${b.gate.go?'GO':'NO-GO'}</b></li>`).join('') || '<li class="empty">none yet: run <code>probe bench</code></li>';
 }
+async function compareRuns(){
+  const a=$('cmpa').value, b=$('cmpb').value;
+  if(!a||!b){$('cmpres').textContent='need two finished runs';return;}
+  try{
+    const d = await api(`/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+    const rows = d.steps.map(s=>`<tr${s.same_decision?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${s.step}</td><td>${s.a?`<code>${esc(s.a.action)}</code> ${esc(s.a.mode)}`:'—'}</td><td>${s.b?`<code>${esc(s.b.action)}</code> ${esc(s.b.mode)}`:'—'}</td></tr>`).join('');
+    $('cmpres').innerHTML = `First divergence: <b>${d.first_divergence===null?'none (identical decisions)':'step '+d.first_divergence}</b><div class="scroll"><table><thead><tr><th>step</th><th>A</th><th>B</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }catch(e){$('cmpres').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}
+}
 async function importCsv(){
   const f = $('csvfile').files[0];
   if(!f){ $('importres').textContent = 'choose a CSV file first'; return; }
@@ -176,6 +193,9 @@ async function refreshRuns(){
   const rs = await api('/api/runs');
   $('runs').innerHTML = rs.map(r=>`<li data-id="${esc(r.experiment_id)}"><span class="mono">${esc(r.experiment_id)}</span> · ${esc(r.status)}</li>`).join('') || '<li class="empty">none yet</li>';
   document.querySelectorAll('#runs li[data-id]').forEach(li=>li.onclick=()=>watch(li.dataset.id));
+  const opts = rs.filter(r=>!r.experiment_id.startsWith('import-')).map(r=>`<option>${esc(r.experiment_id)}</option>`).join('');
+  $('cmpa').innerHTML = opts; $('cmpb').innerHTML = opts;
+  if($('cmpb').options.length>1) $('cmpb').selectedIndex = 1;
 }
 async function startRun(){
   $('run').disabled = true;

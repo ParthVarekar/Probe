@@ -1,0 +1,132 @@
+{
+  "microclimate": {
+    "alarm_residual_weight": 0.045618613077217436,
+    "alarm_surprise_mean": 0.3950996259110501,
+    "alarm_pit_ks": null,
+    "alarm_persistence": 3,
+    "alarm_min_obs": 8,
+    "report": {
+      "thresholds": {
+        "residual_weight": 0.045618613077217436,
+        "surprise_mean": 0.3950996259110501,
+        "pit_ks": "inf",
+        "persistence": 3,
+        "min_obs": 8
+      },
+      "false_alarm_rate": 0.1,
+      "detection_rate": 0.35625,
+      "n_well_specified": 160,
+      "n_misspecified": 160,
+      "target_false_alarm": 0.1,
+      "target_detection": 0.7,
+      "meets_detection_target": false,
+      "per_signal": {
+        "residual_weight": {
+          "threshold": 0.045618613077217436,
+          "false_alarm_rate": 0.08125,
+          "detection_rate": 0.1875
+        },
+        "surprise_mean": {
+          "threshold": 0.3950996259110501,
+          "false_alarm_rate": 0.01875,
+          "detection_rate": 0.2
+        },
+        "pit_ks": {
+          "threshold": "inf",
+          "false_alarm_rate": 0.0,
+          "detection_rate": 0.0
+        }
+      },
+      "exact": false,
+      "note": "calibrated on simulated traces; not an anytime-valid test"
+    },
+    "regimes": {
+      "well": [
+        "R1",
+        "R2",
+        "R4",
+        "R10"
+      ],
+      "mis": [
+        "R3",
+        "R7",
+        "R8",
+        "R9"
+      ]
+    },
+    "seeds": [
+      10000,
+      10039
+    ],
+    "budget": "large",
+    "n_traces": {
+      "well": 160,
+      "mis": 160
+    },
+    "calibration_id": "microclimate-b8f835a6068f"
+  },
+  "systemlab": {
+    "alarm_residual_weight": 0.04516328414984322,
+    "alarm_surprise_mean": null,
+    "alarm_pit_ks": 0.17232746368254181,
+    "alarm_persistence": 3,
+    "alarm_min_obs": 8,
+    "report": {
+      "thresholds": {
+        "residual_weight": 0.04516328414984322,
+        "surprise_mean": "inf",
+        "pit_ks": 0.17232746368254181,
+        "persistence": 3,
+        "min_obs": 8
+      },
+      "false_alarm_rate": 0.1,
+      "detection_rate": 0.175,
+      "n_well_specified": 120,
+      "n_misspecified": 120,
+      "target_false_alarm": 0.1,
+      "target_detection": 0.7,
+      "meets_detection_target": false,
+      "per_signal": {
+        "residual_weight": {
+          "threshold": 0.04516328414984322,
+          "false_alarm_rate": 0.016666666666666666,
+          "detection_rate": 0.06666666666666667
+        },
+        "surprise_mean": {
+          "threshold": "inf",
+          "false_alarm_rate": 0.0,
+          "detection_rate": 0.0
+        },
+        "pit_ks": {
+          "threshold": 0.17232746368254181,
+          "false_alarm_rate": 0.1,
+          "detection_rate": 0.15833333333333333
+        }
+      },
+      "exact": true,
+      "note": "calibrated on simulated traces; not an anytime-valid test"
+    },
+    "regimes": {
+      "well": [
+        "R1",
+        "R2",
+        "R10"
+      ],
+      "mis": [
+        "R3",
+        "R7",
+        "R11"
+      ]
+    },
+    "seeds": [
+      10000,
+      10039
+    ],
+    "budget": "large",
+    "n_traces": {
+      "well": 120,
+      "mis": 120
+    },
+    "calibration_id": "systemlab-37b728c89b3f"
+  }
+}

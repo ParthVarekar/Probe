@@ -241,6 +241,39 @@ def create_app(workspace: Path, results_dir: Path | None = None) -> FastAPI:
             **j["evaluation"],
         }
 
+    @app.get("/api/compare")
+    def compare(a: str, b: str) -> dict[str, Any]:
+        """Step-by-step diff of two recorded runs (decisions and observations)."""
+
+        def steps(exp: str) -> list[dict[str, Any]]:
+            with ledger() as led:
+                recs = [led.payload(e) for e in led.events(exp) if e.type == "run_record"]
+            if not recs:
+                raise HTTPException(404, f"no finished run {exp!r}")
+            return list(recs[-1]["steps"])
+
+        sa, sb = steps(a), steps(b)
+        rows, first = [], None
+        for i in range(max(len(sa), len(sb))):
+            x = sa[i] if i < len(sa) else None
+            y = sb[i] if i < len(sb) else None
+            same = bool(x and y and x["decision_hash"] == y["decision_hash"])
+            if not same and first is None:
+                first = i
+            rows.append(
+                {
+                    "step": i,
+                    "a": None
+                    if x is None
+                    else {"action": x["action_id"], "mode": x["mode"], "value": x["value"]},
+                    "b": None
+                    if y is None
+                    else {"action": y["action_id"], "mode": y["mode"], "value": y["value"]},
+                    "same_decision": same,
+                }
+            )
+        return {"a": a, "b": b, "first_divergence": first, "steps": rows}
+
     def _bundle(exp: str) -> Path:
         from probe.bundle import export_bundle
 
